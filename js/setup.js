@@ -316,9 +316,7 @@ function setupSingleAddHandlers(){
         if(nm) nameInput.value = nm;
       }
     } else {
-      stopStatus.innerHTML = orsKey()
-        ? '<div class="hint">Looks like an address — it\'ll be looked up when you tap Add.</div>'
-        : '<div class="warn-text">No coordinates in that yet, and no API key set (Settings) to look up addresses. Paste a lat,lng or Google Maps link instead.</div>';
+      stopStatus.innerHTML = '<div class="hint">Looks like an address — it\'ll be looked up when you tap Add.</div>';
     }
   });
 
@@ -333,11 +331,9 @@ function setupSingleAddHandlers(){
       try{
         const r = await resolveStopText(val);
         if(r) coord = r;
-        else stopStatus2.innerHTML = '<div class="err-text">Couldn\'t pinpoint that address precisely. This area has patchy address coverage — search it in Google Maps or Waze instead and paste the link here (much more reliable), or paste lat,lng directly.</div>';
+        else stopStatus2.innerHTML = '<div class="err-text">Couldn\'t pinpoint that address at all. Search it in Google Maps or Waze instead and paste the link here (much more reliable), or paste lat,lng directly.</div>';
       }catch(e){
-        stopStatus2.innerHTML = e.message === 'no-api-key'
-          ? '<div class="err-text">No API key set. Add one in Settings, or paste a lat,lng / Google Maps link instead.</div>'
-          : '<div class="err-text">Lookup failed. Check your connection and try again.</div>';
+        stopStatus2.innerHTML = '<div class="err-text">Lookup failed. Check your connection and try again.</div>';
       }
       addBtn.disabled = false;
       if(!coord) return;
@@ -353,7 +349,8 @@ function setupSingleAddHandlers(){
     pendingCoord = null;
     stopInput.value=''; nameInput.value=''; document.getElementById('notesInput').value='';
     document.getElementById('phoneInput').value=''; document.getElementById('codInput').value='';
-    document.getElementById('stopDetectStatus').innerHTML=''; nameFieldWrap.style.display='none'; extraFieldsWrap.style.display='none';
+    document.getElementById('stopDetectStatus').innerHTML = coord.approx ? '<div class="warn-text">Added — matched the street only, verify the exact house number.</div>' : '';
+    nameFieldWrap.style.display='none'; extraFieldsWrap.style.display='none';
     addBtn.disabled = true;
     if(state.order){ await recomputeLegs(); }
     saveState();
@@ -368,8 +365,8 @@ function setupBulkAddHandlers(){
     const status = document.getElementById('bulkStatus');
     const lines = bulkInput.value.split('\n').map(l => l.trim()).filter(Boolean);
     if(lines.length === 0) return;
-    status.textContent = 'Parsing '+lines.length+' line(s)…';
-    let added = 0;
+    status.textContent = 'Parsing '+lines.length+' line(s)… (one at a time, to stay within the free geocoders\' rate limits)';
+    let added = 0, approxCount = 0;
     const failed = [];
     for(const line of lines){
       try{
@@ -380,16 +377,21 @@ function setupBulkAddHandlers(){
           state.stops.push({id, name, lat:r.lat, lng:r.lng, notes:'', phone:null, cod:null, status:'pending', skipReason:null});
           if(state.order) state.order.push(id);
           added++;
+          if(r.approx) approxCount++;
         } else failed.push(line);
       }catch(e){
         failed.push(line + (e.message==='no-api-key' ? ' (needs API key)' : ''));
       }
-      await new Promise(r => setTimeout(r, 180));
+      status.textContent = 'Parsed '+(added+failed.length)+' of '+lines.length+'…';
+      // Nominatim's usage policy caps free lookups at ~1/sec — pace the loop accordingly.
+      await new Promise(r => setTimeout(r, 1100));
     }
     if(state.order){ await recomputeLegs(); }
     saveState();
     renderSetup();
-    status.textContent = added+' stop(s) added.' + (failed.length ? ' Couldn\'t pinpoint precisely (search these in Google Maps/Waze and paste the link instead): '+failed.join(' | ') : '');
+    status.textContent = added+' stop(s) added'
+      + (approxCount ? ' ('+approxCount+' matched the street only — check the exact house number on arrival)' : '')
+      + '.' + (failed.length ? ' Couldn\'t pinpoint at all (search these in Google Maps/Waze and paste the link instead): '+failed.join(' | ') : '');
     if(added) bulkInput.value = failed.join('\n');
   };
 }

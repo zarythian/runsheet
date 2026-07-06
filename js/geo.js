@@ -52,14 +52,19 @@ function extractLatLng(text){
 // handing back a city-center pin as if it were precise.
 const ACCEPTABLE_GEOCODE_LAYERS = ['address','street','venue'];
 
+// Nominatim (OpenStreetMap) result types coarser than these are administrative
+// areas (city/town/suburb/...) — same rejection logic as the Pelias layer check.
+const NOMINATIM_REJECT_TYPES = ['city','town','village','hamlet','suburb','neighbourhood',
+  'state','country','county','administrative','municipality','borough','region'];
+
 const ORS_PROFILE = {bicycling:'cycling-regular', driving:'driving-car', walking:'foot-walking'};
 
 function orsKey(){ return (state.settings.orsKey || '').trim(); }
 
-// Geocode a free-text address via ORS Pelias search, biased to Israel (this app's
-// service area) so queries don't match similarly-named places in other countries.
-// Returns {lat,lng,label} or null if nothing precise enough was found.
-async function geocodeAddress(text){
+// Try ORS Pelias search first, biased to Israel (this app's service area) so
+// queries don't match similarly-named places elsewhere. Returns {lat,lng,label}
+// or null if nothing at address/street/venue precision was found.
+async function geocodeViaORS(text){
   const key = orsKey();
   if(!key) throw new Error('no-api-key');
   const url = 'https://api.openrouteservice.org/geocode/search?api_key='+encodeURIComponent(key)
@@ -71,7 +76,38 @@ async function geocodeAddress(text){
   const features = data.features || [];
   const f = features.find(feat => ACCEPTABLE_GEOCODE_LAYERS.includes(feat.properties.layer));
   if(!f) return null;
-  return {lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0], label: f.properties.label};
+  // 'street' layer means it found the right road but not this specific house number.
+  return {lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0], label: f.properties.label, approx: f.properties.layer === 'street'};
+}
+
+// Fallback: Nominatim (OpenStreetMap) has meaningfully better street-level
+// coverage than ORS's Pelias index for this app's Israel service area — ORS
+// often only has a city-center match where Nominatim has the actual street.
+// No API key needed; free public endpoint, used sparingly (one lookup at a time).
+async function geocodeViaNominatim(text){
+  const url = 'https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(text)
+    +'&format=jsonv2&limit=3&countrycodes=il&addressdetails=1';
+  const res = await fetch(url);
+  if(!res.ok) return null;
+  const results = await res.json();
+  const hit = results.find(r => !NOMINATIM_REJECT_TYPES.includes(r.type));
+  if(!hit) return null;
+  // No house_number match means we only found the street, not this exact address point.
+  const approx = !(hit.address && hit.address.house_number);
+  return {lat: parseFloat(hit.lat), lng: parseFloat(hit.lon), label: hit.display_name.split(',').slice(0,3).join(',').trim(), approx};
+}
+
+// Geocode free text, trying ORS first, then Nominatim if ORS has nothing precise
+// enough (or no ORS key is set — Nominatim needs none). Returns {lat,lng,label}
+// or null if neither source found a real match.
+async function geocodeAddress(text){
+  try{
+    const viaOrs = await geocodeViaORS(text);
+    if(viaOrs) return viaOrs;
+  }catch(e){
+    if(e.message !== 'no-api-key') throw e;
+  }
+  return await geocodeViaNominatim(text);
 }
 
 // Resolve any raw input (gmaps link, lat,lng, or free-text address) into {lat,lng,label|null}.
@@ -79,7 +115,7 @@ async function geocodeAddress(text){
 async function resolveStopText(text){
   text = sanitizeText(text);
   const coord = extractLatLng(text);
-  if(coord) return {lat: coord.lat, lng: coord.lng, label: extractPlaceName(text)};
+  if(coord) return {lat: coord.lat, lng: coord.lng, label: extractPlaceName(text), approx: false};
   if(isShortLink(text)) throw new Error('short-link');
   // A maps link with no embedded coordinates: geocode the readable place name
   // (if any) instead of the raw URL, which the geocoder can't parse usefully.
