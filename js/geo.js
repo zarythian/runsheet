@@ -11,35 +11,65 @@ function extractPlaceName(text){
   }
   return null;
 }
+
+// Strip bidi/invisible control characters and normalize odd whitespace that mobile
+// keyboards (especially RTL/Hebrew ones) can silently insert around pasted text.
+// Built from plain decimal char codes (not escape literals) to avoid any editor/
+// encoding ambiguity around invisible characters in the source itself.
+const INVISIBLE_CODES = [8203,8204,8205,8206,8207,8234,8235,8236,8237,8238,8294,8295,8296,8297,65279];
+const ODD_SPACE_CODES = [160,8192,8193,8194,8195,8196,8197,8198,8199,8200,8201,8202,12288];
+function sanitizeText(text){
+  let out = '';
+  for(let i=0;i<text.length;i++){
+    const code = text.charCodeAt(i);
+    if(INVISIBLE_CODES.indexOf(code) !== -1) continue;
+    out += ODD_SPACE_CODES.indexOf(code) !== -1 ? ' ' : text[i];
+  }
+  return out.trim();
+}
+
 function extractLatLng(text){
   if(!text) return null;
-  text = text.trim();
+  text = sanitizeText(text);
   let m;
-  m = text.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+  // plain "lat, lng" or "lat lng" (comma optional — some apps/keyboards drop it)
+  m = text.match(/^(-?\d+(?:\.\d+)?)\s*[,\s]\s*(-?\d+(?:\.\d+)?)$/);
   if(m) return {lat: parseFloat(m[1]), lng: parseFloat(m[2])};
+  // .../@lat,lng,17z
   m = text.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
   if(m) return {lat: parseFloat(m[1]), lng: parseFloat(m[2])};
+  // ?q=lat,lng  or &q=lat,lng
   m = text.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
   if(m) return {lat: parseFloat(m[1]), lng: parseFloat(m[2])};
+  // place url !3dLAT!4dLNG
   m = text.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
   if(m) return {lat: parseFloat(m[1]), lng: parseFloat(m[2])};
   return null;
 }
 
+// Pelias "layer" values coarser than these (city/region/country-level) mean the
+// geocoder couldn't find the actual address/street — reject rather than silently
+// handing back a city-center pin as if it were precise.
+const ACCEPTABLE_GEOCODE_LAYERS = ['address','street','venue'];
+
 const ORS_PROFILE = {bicycling:'cycling-regular', driving:'driving-car', walking:'foot-walking'};
 
 function orsKey(){ return (state.settings.orsKey || '').trim(); }
 
-// Geocode a free-text address via ORS Pelias search. Returns {lat,lng,label} or null.
+// Geocode a free-text address via ORS Pelias search, biased to Israel (this app's
+// service area) so queries don't match similarly-named places in other countries.
+// Returns {lat,lng,label} or null if nothing precise enough was found.
 async function geocodeAddress(text){
   const key = orsKey();
   if(!key) throw new Error('no-api-key');
   const url = 'https://api.openrouteservice.org/geocode/search?api_key='+encodeURIComponent(key)
-    +'&text='+encodeURIComponent(text)+'&size=1';
+    +'&text='+encodeURIComponent(text)+'&size=3'
+    +'&boundary.country=ISR&focus.point.lat=32.18&focus.point.lon=34.91';
   const res = await fetch(url);
   if(!res.ok) throw new Error('geocode-http-'+res.status);
   const data = await res.json();
-  const f = data.features && data.features[0];
+  const features = data.features || [];
+  const f = features.find(feat => ACCEPTABLE_GEOCODE_LAYERS.includes(feat.properties.layer));
   if(!f) return null;
   return {lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0], label: f.properties.label};
 }
@@ -47,11 +77,14 @@ async function geocodeAddress(text){
 // Resolve any raw input (gmaps link, lat,lng, or free-text address) into {lat,lng,label|null}.
 // Throws 'no-api-key' only when geocoding was actually required and no key is set.
 async function resolveStopText(text){
-  text = text.trim();
+  text = sanitizeText(text);
   const coord = extractLatLng(text);
   if(coord) return {lat: coord.lat, lng: coord.lng, label: extractPlaceName(text)};
   if(isShortLink(text)) throw new Error('short-link');
-  return await geocodeAddress(text);
+  // A maps link with no embedded coordinates: geocode the readable place name
+  // (if any) instead of the raw URL, which the geocoder can't parse usefully.
+  const placeName = extractPlaceName(text);
+  return await geocodeAddress(placeName || text);
 }
 
 // Ask ORS Optimization API (VROOM) for the best open-path visiting order.

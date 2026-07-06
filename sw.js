@@ -1,4 +1,4 @@
-const CACHE = 'runsheet-v1';
+const CACHE = 'runsheet-v2';
 const SHELL = [
   './',
   './index.html',
