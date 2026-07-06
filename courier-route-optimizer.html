@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#22262B">
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%20%22Runsheet%20-%20Courier%20Route%20Optimizer%22%2C%20%22short_name%22%3A%20%22Runsheet%22%2C%20%22start_url%22%3A%20%22.%22%2C%20%22display%22%3A%20%22standalone%22%2C%20%22background_color%22%3A%20%22%2322262B%22%2C%20%22theme_color%22%3A%20%22%2322262B%22%2C%20%22icons%22%3A%20%5B%7B%22src%22%3A%20%22data%3Aimage/svg%2Bxml%2C%253Csvg%2520xmlns%253D%2527http%253A//www.w3.org/2000/svg%2527%2520viewBox%253D%25270%25200%2520100%2520100%2527%253E%253Crect%2520width%253D%2527100%2527%2520height%253D%2527100%2527%2520rx%253D%252718%2527%2520fill%253D%2527%252322262B%2527/%253E%253Cpath%2520d%253D%2527M15%252070%2520L50%252030%2520L85%252070%2527%2520stroke%253D%2527%2523F4C430%2527%2520stroke-width%253D%25278%2527%2520fill%253D%2527none%2527%2520stroke-dasharray%253D%252710%25208%2527%2520stroke-linecap%253D%2527round%2527/%253E%253Ccircle%2520cx%253D%252750%2527%2520cy%253D%252730%2527%2520r%253D%25279%2527%2520fill%253D%2527%25233DDC97%2527/%253E%253C/svg%253E%22%2C%20%22sizes%22%3A%20%22192x192%22%2C%20%22type%22%3A%20%22image/svg%2Bxml%22%2C%20%22purpose%22%3A%20%22any%22%7D%2C%20%7B%22src%22%3A%20%22data%3Aimage/svg%2Bxml%2C%253Csvg%2520xmlns%253D%2527http%253A//www.w3.org/2000/svg%2527%2520viewBox%253D%25270%25200%2520100%2520100%2527%253E%253Crect%2520width%253D%2527100%2527%2520height%253D%2527100%2527%2520rx%253D%252718%2527%2520fill%253D%2527%252322262B%2527/%253E%253Cpath%2520d%253D%2527M15%252070%2520L50%252030%2520L85%252070%2527%2520stroke%253D%2527%2523F4C430%2527%2520stroke-width%253D%25278%2527%2520fill%253D%2527none%2527%2520stroke-dasharray%253D%252710%25208%2527%2520stroke-linecap%253D%2527round%2527/%253E%253Ccircle%2520cx%253D%252750%2527%2520cy%253D%252730%2527%2520r%253D%25279%2527%2520fill%253D%2527%25233DDC97%2527/%253E%253C/svg%253E%22%2C%20%22sizes%22%3A%20%22512x512%22%2C%20%22type%22%3A%20%22image/svg%2Bxml%22%2C%20%22purpose%22%3A%20%22any%22%7D%5D%7D">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20100%20100%27%3E%3Crect%20width%3D%27100%27%20height%3D%27100%27%20rx%3D%2718%27%20fill%3D%27%2322262B%27/%3E%3Cpath%20d%3D%27M15%2070%20L50%2030%20L85%2070%27%20stroke%3D%27%23F4C430%27%20stroke-width%3D%278%27%20fill%3D%27none%27%20stroke-dasharray%3D%2710%208%27%20stroke-linecap%3D%27round%27/%3E%3Ccircle%20cx%3D%2750%27%20cy%3D%2730%27%20r%3D%279%27%20fill%3D%27%233DDC97%27/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20100%20100%27%3E%3Crect%20width%3D%27100%27%20height%3D%27100%27%20rx%3D%2718%27%20fill%3D%27%2322262B%27/%3E%3Cpath%20d%3D%27M15%2070%20L50%2030%20L85%2070%27%20stroke%3D%27%23F4C430%27%20stroke-width%3D%278%27%20fill%3D%27none%27%20stroke-dasharray%3D%2710%208%27%20stroke-linecap%3D%27round%27/%3E%3Ccircle%20cx%3D%2750%27%20cy%3D%2730%27%20r%3D%279%27%20fill%3D%27%233DDC97%27/%3E%3C/svg%3E">
+<title>Runsheet — Courier Route Optimizer</title>
+<style>
+:root{
+  --asphalt:#22262B;
+  --surface:#2C3037;
+  --surface-2:#363B43;
+  --line:#454B54;
+  --text:#EDEEF0;
+  --text-dim:#9AA1AB;
+  --yellow:#F4C430;
+  --teal:#3DDC97;
+  --coral:#FF6B5C;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--asphalt);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+#app{max-width:720px;margin:0 auto;padding:20px 16px 60px;}
+
+.topbar{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px;}
+h1{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-weight:700;
+  font-size:22px;font-weight:700;margin:0;
+  letter-spacing:-0.01em;
+}
+h1 .dash{color:var(--yellow);}
+.reset-link{
+  font-size:12px;color:var(--text-dim);background:none;border:none;
+  cursor:pointer;text-decoration:underline;padding:0;font-family:inherit;
+}
+.tagline{font-size:12.5px;color:var(--text-dim);margin:0 0 20px;}
+
+.card{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:14px;
+  margin-bottom:14px;
+}
+.card h2{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-weight:700;
+  font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--text-dim);margin:0 0 12px;
+}
+
+label{display:block;font-size:11.5px;color:var(--text-dim);margin-bottom:4px;}
+input,select{
+  width:100%;background:var(--surface-2);border:1px solid var(--line);
+  color:var(--text);border-radius:7px;padding:9px 10px;font-size:14px;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+}
+input:focus,select:focus{outline:none;border-color:var(--yellow);}
+input::placeholder{color:#6b7280;}
+.row{display:flex;gap:8px;}
+.row > div{flex:1;}
+.field{margin-bottom:10px;}
+.hint{font-size:11px;color:var(--text-dim);margin-top:5px;line-height:1.4;}
+.error{font-size:11.5px;color:var(--coral);margin-top:5px;}
+.detect-ok{font-size:12px;color:var(--teal);margin-top:6px;font-weight:500;}
+.detect-warn{font-size:11.5px;color:var(--text-dim);margin-top:6px;line-height:1.5;}
+.detect-warn a{color:var(--yellow);}
+.name-field{margin-top:8px;}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  border:none;border-radius:7px;padding:10px 16px;font-size:13.5px;font-weight:600;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;cursor:pointer;width:100%;
+}
+.btn-primary{background:var(--yellow);color:#1a1a1a;}
+.btn-primary:disabled{background:var(--surface-2);color:var(--text-dim);cursor:not-allowed;}
+.btn-ghost{background:transparent;border:1px solid var(--line);color:var(--text);}
+.btn-teal{background:var(--teal);color:#0d1f16;}
+
+.stop-list{list-style:none;margin:0;padding:0;}
+.stop-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 4px;border-bottom:1px solid var(--line);
+}
+.stop-item:last-child{border-bottom:none;}
+.badge{
+  width:22px;height:22px;border-radius:50%;background:var(--surface-2);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'SFMono-Regular',Menlo,Consolas,monospace;font-size:11px;color:var(--text-dim);flex-shrink:0;
+}
+.badge.start{background:var(--teal);color:#0d1f16;}
+.stop-name{font-size:13.5px;font-weight:500;}
+.stop-coord{font-family:'SFMono-Regular',Menlo,Consolas,monospace;font-size:11px;color:var(--text-dim);}
+.stop-meta{flex:1;min-width:0;}
+.del-btn{
+  background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px;
+  padding:2px 6px;flex-shrink:0;
+}
+.del-btn:hover{color:var(--coral);}
+.empty{color:var(--text-dim);font-size:13px;padding:8px 4px;}
+
+.stats{display:flex;gap:10px;margin-bottom:14px;}
+.stat{
+  flex:1;background:var(--surface);border:1px solid var(--line);border-radius:10px;
+  padding:12px;text-align:center;
+}
+.stat .num{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-weight:700;font-size:20px;font-weight:700;color:var(--yellow);}
+.stat .lbl{font-size:10.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-top:2px;}
+
+.leg-list{list-style:none;margin:0;padding:0;font-size:12.5px;}
+.leg-list li{display:flex;justify-content:space-between;padding:6px 2px;border-bottom:1px dashed var(--line);color:var(--text-dim);}
+.leg-list li:last-child{border-bottom:none;}
+.leg-list b{color:var(--text);font-weight:500;}
+.leg-list .km{font-family:'SFMono-Regular',Menlo,Consolas,monospace;color:var(--teal);}
+
+#mapWrap{background:var(--surface-2);border-radius:8px;overflow:hidden;margin-bottom:4px;}
+
+.gmaps-btn{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--surface-2);border:1px solid var(--line);border-radius:8px;
+  padding:11px 14px;margin-bottom:8px;text-decoration:none;color:var(--text);
+  font-size:13.5px;font-weight:500;
+}
+.gmaps-btn:active{background:var(--line);}
+.gmaps-btn .arrow{color:var(--teal);font-family:'SFMono-Regular',Menlo,Consolas,monospace;}
+
+.footer-note{font-size:11px;color:var(--text-dim);text-align:center;margin-top:18px;line-height:1.5;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// ---------- state ----------
+let state = {
+  depot: null,          // {name, lat, lng}
+  stops: [],            // [{id, name, lat, lng}]
+  order: null,           // array of indices into [depot, ...stops] after optimizing, or null
+  speed: 18,
+  dwell: 3,
+  travelMode: 'bicycling'
+};
+const STORE_KEY = 'runsheet-state-v1';
+
+// ---------- persistence ----------
+async function loadState(){
+  try{
+    const res = await window.storage.get(STORE_KEY, false);
+    if(res && res.value){
+      const parsed = JSON.parse(res.value);
+      state = Object.assign(state, parsed);
+    }
+  }catch(e){ /* no saved state yet */ }
+  render();
+}
+async function saveState(){
+  try{
+    await window.storage.set(STORE_KEY, JSON.stringify(state), false);
+  }catch(e){ /* persistence is a nice-to-have; ignore failures silently */ }
+}
+
+// ---------- geo helpers ----------
+function haversine(a,b){
+  const R = 6371;
+  const dLat = (b.lat-a.lat)*Math.PI/180;
+  const dLng = (b.lng-a.lng)*Math.PI/180;
+  const s1 = Math.sin(dLat/2), s2 = Math.sin(dLng/2);
+  const h = s1*s1 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*s2*s2;
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+
+let pendingCoord = null;
+
+function isShortLink(text){
+  return /maps\.app\.goo\.gl|goo\.gl\/maps/i.test(text);
+}
+function extractPlaceName(text){
+  let m = text.match(/\/place\/([^\/@]+)/);
+  if(m){
+    try{ return decodeURIComponent(m[1].replace(/\+/g,' ')); }
+    catch(e){ return m[1].replace(/\+/g,' '); }
+  }
+  return null;
+}
+function extractLatLng(text){
+  if(!text) return null;
+  text = text.trim();
+  let m;
+  // plain "lat, lng"
+  m = text.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+  if(m) return {lat: parseFloat(m[1]), lng: parseFloat(m[2])};
+  // .../@lat,lng,17z
+  m = text.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if(m) return {lat: parseFloat(m[1]), lng: parseFloat(m[2])};
+  // ?q=lat,lng  or &q=lat,lng
+  m = text.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if(m) return {lat: parseFloat(m[1]), lng: parseFloat(m[2])};
+  // place url !3dLAT!4dLNG
+  m = text.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+  if(m) return {lat: parseFloat(m[1]), lng: parseFloat(m[2])};
+  return null;
+}
+
+// ---------- TSP: nearest neighbor + 2-opt (open path, start fixed at index 0) ----------
+function pathDistance(order, pts){
+  let d = 0;
+  for(let i=0;i<order.length-1;i++) d += haversine(pts[order[i]], pts[order[i+1]]);
+  return d;
+}
+function nearestNeighborOrder(pts){
+  const n = pts.length;
+  const visited = new Array(n).fill(false);
+  visited[0] = true;
+  const order = [0];
+  for(let step=1; step<n; step++){
+    const last = order[order.length-1];
+    let best=-1, bestD=Infinity;
+    for(let j=0;j<n;j++){
+      if(visited[j]) continue;
+      const d = haversine(pts[last], pts[j]);
+      if(d<bestD){bestD=d;best=j;}
+    }
+    visited[best]=true;
+    order.push(best);
+  }
+  return order;
+}
+function twoOpt(order, pts){
+  let improved = true;
+  let best = order.slice();
+  while(improved){
+    improved = false;
+    for(let i=1;i<best.length-1;i++){
+      for(let j=i+1;j<best.length;j++){
+        const candidate = best.slice(0,i).concat(best.slice(i,j+1).reverse(), best.slice(j+1));
+        if(pathDistance(candidate, pts) < pathDistance(best, pts) - 1e-9){
+          best = candidate;
+          improved = true;
+        }
+      }
+    }
+  }
+  return best;
+}
+function optimize(){
+  const pts = [state.depot || state.stops[0]].concat(state.depot ? state.stops : state.stops.slice(1));
+  if(pts.length < 2){ return; }
+  let order = nearestNeighborOrder(pts);
+  order = twoOpt(order, pts);
+  state.order = order;
+  saveState();
+  render();
+}
+
+// ---------- google maps link builder ----------
+function buildGmapsLinks(){
+  const pts = [state.depot || state.stops[0]].concat(state.depot ? state.stops : state.stops.slice(1));
+  const order = state.order || pts.map((_,i)=>i);
+  const coords = order.map(i => pts[i].lat.toFixed(6)+','+pts[i].lng.toFixed(6));
+  const links = [];
+  const CHUNK = 10; // origin + up to 8 waypoints + destination
+  let start = 0;
+  while(start < coords.length-1){
+    const end = Math.min(start+CHUNK-1, coords.length-1);
+    const seg = coords.slice(start, end+1);
+    const origin = seg[0];
+    const destination = seg[seg.length-1];
+    const waypoints = seg.slice(1,-1);
+    let url = 'https://www.google.com/maps/dir/?api=1&origin='+origin+'&destination='+destination;
+    if(waypoints.length) url += '&waypoints='+waypoints.join('|');
+    url += '&travelmode='+state.travelMode;
+    links.push(url);
+    start = end;
+  }
+  return links;
+}
+
+// ---------- rendering ----------
+function fmtKm(km){ return km.toFixed(1)+' km'; }
+function fmtMin(min){
+  if(min < 60) return Math.round(min)+' min';
+  const h = Math.floor(min/60), m = Math.round(min%60);
+  return h+'h '+(m<10?'0':'')+m+'m';
+}
+
+function renderMapSVG(pts, order){
+  const pad = 24, W = 320, H = 220;
+  const lats = pts.map(p=>p.lat), lngs = pts.map(p=>p.lng);
+  const minLat=Math.min(...lats), maxLat=Math.max(...lats);
+  const minLng=Math.min(...lngs), maxLng=Math.max(...lngs);
+  const spanLat = (maxLat-minLat)||0.001, spanLng=(maxLng-minLng)||0.001;
+  function proj(p){
+    const x = pad + ((p.lng-minLng)/spanLng)*(W-2*pad);
+    const y = H-pad - ((p.lat-minLat)/spanLat)*(H-2*pad);
+    return [x,y];
+  }
+  let pathD = '';
+  order.forEach((idx,i)=>{
+    const [x,y] = proj(pts[idx]);
+    pathD += (i===0?'M':'L')+x.toFixed(1)+','+y.toFixed(1)+' ';
+  });
+  let markers = '';
+  order.forEach((idx,i)=>{
+    const [x,y]=proj(pts[idx]);
+    const isStart = i===0;
+    markers += '<circle cx="'+x+'" cy="'+y+'" r="'+(isStart?8:7)+'" fill="'+(isStart?'#3DDC97':'#2C3037')+'" stroke="'+(isStart?'#0d1f16':'#F4C430')+'" stroke-width="1.5"/>';
+    markers += '<text x="'+x+'" y="'+(y+3.5)+'" font-size="9" font-family="Menlo, Consolas, monospace" fill="'+(isStart?'#0d1f16':'#F4C430')+'" text-anchor="middle">'+(isStart?'S':i)+'</text>';
+  });
+  return '<svg width="100%" viewBox="0 0 '+W+' '+H+'" style="display:block;">'
+    + '<rect width="'+W+'" height="'+H+'" fill="#363B43"/>'
+    + '<path d="'+pathD+'" fill="none" stroke="#F4C430" stroke-width="2" stroke-dasharray="6 5"/>'
+    + markers
+    + '</svg>';
+}
+
+function render(){
+  const app = document.getElementById('app');
+
+  const hasStops = state.stops.length > 0;
+  const canOptimize = (state.depot ? state.stops.length>=1 : state.stops.length>=2);
+
+  let stopsHtml = '';
+  if(!hasStops){
+    stopsHtml = '<div class="empty">No stops added yet.</div>';
+  } else {
+    stopsHtml = '<ul class="stop-list">' + state.stops.map((s,i)=>
+      '<li class="stop-item">'
+      + '<div class="badge">'+(i+1)+'</div>'
+      + '<div class="stop-meta"><div class="stop-name">'+escapeHtml(s.name)+'</div>'
+      + '<div class="stop-coord">'+s.lat.toFixed(5)+', '+s.lng.toFixed(5)+'</div></div>'
+      + '<button class="del-btn" data-del="'+s.id+'" title="Remove">✕</button>'
+      + '</li>'
+    ).join('') + '</ul>';
+  }
+
+  let resultsHtml = '';
+  if(state.order){
+    const pts = [state.depot || state.stops[0]].concat(state.depot ? state.stops : state.stops.slice(1));
+    const names = pts.map((p,i)=> i===0 ? (state.depot? (state.depot.name||'Start') : (state.stops[0].name)) : null);
+    // build display names aligned with pts array
+    const displayNames = pts.map((p,i)=>{
+      if(state.depot) return i===0 ? (state.depot.name||'Start') : state.stops[i-1].name;
+      return state.stops[i].name;
+    });
+    const totalKm = pathDistance(state.order, pts);
+    const totalMin = (totalKm/state.speed)*60 + (state.stops.length*state.dwell);
+    let legs = '';
+    for(let i=0;i<state.order.length-1;i++){
+      const a = state.order[i], b = state.order[i+1];
+      const d = haversine(pts[a], pts[b]);
+      legs += '<li><span><b>'+displayNames[a]+'</b> → '+displayNames[b]+'</span><span class="km">'+fmtKm(d)+'</span></li>';
+    }
+    const svg = renderMapSVG(pts, state.order);
+    const links = buildGmapsLinks();
+    let linksHtml = links.map((url,i)=>
+      '<a class="gmaps-btn" href="'+url+'" target="_blank" rel="noopener">'
+      + '<span>Open leg '+(i+1)+' of '+links.length+' in Google Maps</span><span class="arrow">→</span></a>'
+    ).join('');
+
+    resultsHtml = ''
+      + '<div class="stats">'
+      + '<div class="stat"><div class="num">'+fmtKm(totalKm)+'</div><div class="lbl">Distance</div></div>'
+      + '<div class="stat"><div class="num">'+fmtMin(totalMin)+'</div><div class="lbl">Est. time</div></div>'
+      + '<div class="stat"><div class="num">'+state.stops.length+'</div><div class="lbl">Stops</div></div>'
+      + '</div>'
+      + '<div class="card"><h2>Route map</h2><div id="mapWrap">'+svg+'</div></div>'
+      + '<div class="card"><h2>Navigate</h2>'+linksHtml
+      + '<div class="hint">Each link opens turn-by-turn directions in Google Maps, in optimized order. Long routes are split into legs (Maps limits stops per link) — open them one after another as you go.</div></div>'
+      + '<div class="card"><h2>Stop-by-stop order</h2><ul class="leg-list">'+legs+'</ul></div>';
+  }
+
+  app.innerHTML = ''
+    + '<div class="topbar"><h1>Run<span class="dash">—</span>sheet</h1>'
+    + (hasStops ? '<button class="reset-link" id="resetBtn">clear all</button>' : '')
+    + '</div>'
+    + '<p class="tagline">Drop your delivery pins, get the shortest route in order.</p>'
+
+    + '<div class="card">'
+    + '<h2>Start point <span style="text-transform:none;font-weight:400;">(optional)</span></h2>'
+    + '<div class="field"><input id="depotInput" placeholder="Paste a Google Maps link, or lat,lng" value="'+(state.depot? (state.depot.lat.toFixed(5)+', '+state.depot.lng.toFixed(5)) : '')+'"></div>'
+    + '<div id="depotDetectStatus"></div>'
+    + '<div class="hint">In Google Maps: long-press your location → tap the coordinates to copy, then paste here. Leave blank to just start from your first stop.</div>'
+    + '</div>'
+
+    + '<div class="card">'
+    + '<h2>Add a stop</h2>'
+    + '<div class="field"><label>Paste a Google Maps link, or type an address</label>'
+    + '<input id="stopInput" placeholder="Paste link, or type address / lat,lng" autocomplete="off"></div>'
+    + '<div id="stopDetectStatus"></div>'
+    + '<div class="field name-field" id="nameFieldWrap" style="display:none;"><label>Label (edit if you want)</label><input id="nameInput" placeholder="e.g. Kfar Saba — Herzl 12"></div>'
+    + '<button class="btn btn-ghost" id="addBtn" style="margin-top:10px;" disabled>+ Add stop</button>'
+    + '</div>'
+
+    + '<div class="card"><h2>Stops ('+state.stops.length+')</h2>'+stopsHtml+'</div>'
+
+    + '<div class="card"><h2>Route settings</h2>'
+    + '<div class="row">'
+    + '<div class="field"><label>Avg. speed (km/h)</label><input id="speedInput" type="number" min="1" value="'+state.speed+'"></div>'
+    + '<div class="field"><label>Mins per stop</label><input id="dwellInput" type="number" min="0" value="'+state.dwell+'"></div>'
+    + '</div>'
+    + '<div class="field"><label>Travel mode</label><select id="modeInput">'
+    + ['bicycling','driving','walking'].map(m=>'<option value="'+m+'"'+(state.travelMode===m?' selected':'')+'>'+m[0].toUpperCase()+m.slice(1)+(m==='bicycling'?' (ebike)':'')+'</option>').join('')
+    + '</select></div>'
+    + '</div>'
+
+    + '<button class="btn btn-primary" id="optimizeBtn" '+(canOptimize?'':'disabled')+'>Optimize route</button>'
+
+    + resultsHtml
+
+    + '<div class="footer-note">Route order is estimated from straight-line distance between pins, then refined — actual road distance may vary slightly. Your stops are saved on this device.<br><br><b>To install:</b> open this file in Chrome → tap ⋮ → "Add to Home screen." It\'ll launch full-screen like an app, no browser bar.</div>';
+
+  attachHandlers();
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function attachHandlers(){
+  pendingCoord = null;
+  const stopInput = document.getElementById('stopInput');
+  const stopStatus = document.getElementById('stopDetectStatus');
+  const nameFieldWrap = document.getElementById('nameFieldWrap');
+  const addBtn = document.getElementById('addBtn');
+
+  if(stopInput) stopInput.addEventListener('input', () => {
+    const val = stopInput.value.trim();
+    if(!val){
+      pendingCoord = null;
+      stopStatus.innerHTML = '';
+      nameFieldWrap.style.display = 'none';
+      addBtn.disabled = true;
+      return;
+    }
+    if(isShortLink(val) && !extractLatLng(val)){
+      pendingCoord = null;
+      addBtn.disabled = true;
+      stopStatus.innerHTML = '<div class="detect-warn">Short links (goo.gl) don\'t contain coordinates. Open it once in Maps, then copy the full address bar link or the "lat,lng" shown when you long-press the pin.</div>';
+      return;
+    }
+    const coord = extractLatLng(val);
+    if(coord){
+      pendingCoord = coord;
+      addBtn.disabled = false;
+      stopStatus.innerHTML = '<div class="detect-ok">✓ Ready — '+coord.lat.toFixed(5)+', '+coord.lng.toFixed(5)+'</div>';
+      nameFieldWrap.style.display = 'block';
+      const nameInput = document.getElementById('nameInput');
+      if(nameInput && !nameInput.value){
+        const nm = extractPlaceName(val);
+        if(nm) nameInput.value = nm;
+      }
+    } else {
+      pendingCoord = null;
+      addBtn.disabled = true;
+      const q = encodeURIComponent(val);
+      stopStatus.innerHTML = '<div class="detect-warn">No coordinates in that yet. <a href="https://www.google.com/maps/search/?api=1&query='+q+'" target="_blank" rel="noopener">Search it on Google Maps →</a> then copy the link or pin back here.</div>';
+      nameFieldWrap.style.display = 'block';
+    }
+  });
+
+  if(addBtn) addBtn.onclick = () => {
+    if(!pendingCoord) return;
+    const nameInput = document.getElementById('nameInput');
+    const name = (nameInput && nameInput.value.trim()) || ('Stop '+(state.stops.length+1));
+    state.stops.push({id: Date.now()+'-'+Math.random().toString(36).slice(2,7), name, lat: pendingCoord.lat, lng: pendingCoord.lng});
+    state.order = null;
+    pendingCoord = null;
+    saveState();
+    render();
+  };
+
+  document.querySelectorAll('[data-del]').forEach(btn=>{
+    btn.onclick = () => {
+      const id = btn.getAttribute('data-del');
+      state.stops = state.stops.filter(s=>s.id!==id);
+      state.order = null;
+      saveState();
+      render();
+    };
+  });
+
+  const depotInput = document.getElementById('depotInput');
+  const depotStatus = document.getElementById('depotDetectStatus');
+  if(depotInput) depotInput.addEventListener('input', () => {
+    const val = depotInput.value.trim();
+    if(!val){ depotStatus.innerHTML=''; return; }
+    if(isShortLink(val) && !extractLatLng(val)){
+      depotStatus.innerHTML = '<div class="detect-warn">Short links don\'t contain coordinates — open it once in Maps, then paste the full link or "lat,lng".</div>';
+      return;
+    }
+    const coord = extractLatLng(val);
+    depotStatus.innerHTML = coord
+      ? '<div class="detect-ok">✓ Ready — '+coord.lat.toFixed(5)+', '+coord.lng.toFixed(5)+'</div>'
+      : '<div class="detect-warn">No coordinates in that yet.</div>';
+  });
+  if(depotInput) depotInput.onblur = () => {
+    const val = depotInput.value.trim();
+    if(!val){ state.depot = null; }
+    else {
+      const coord = extractLatLng(val);
+      if(coord){ state.depot = {name:'Start', lat:coord.lat, lng:coord.lng}; }
+    }
+    state.order = null;
+    saveState();
+    render();
+  };
+
+  const speedInput = document.getElementById('speedInput');
+  if(speedInput) speedInput.onchange = () => { state.speed = parseFloat(speedInput.value)||18; saveState(); render(); };
+  const dwellInput = document.getElementById('dwellInput');
+  if(dwellInput) dwellInput.onchange = () => { state.dwell = parseFloat(dwellInput.value)||0; saveState(); render(); };
+  const modeInput = document.getElementById('modeInput');
+  if(modeInput) modeInput.onchange = () => { state.travelMode = modeInput.value; saveState(); render(); };
+
+  const optimizeBtn = document.getElementById('optimizeBtn');
+  if(optimizeBtn) optimizeBtn.onclick = optimize;
+
+  const resetBtn = document.getElementById('resetBtn');
+  if(resetBtn) resetBtn.onclick = () => {
+    if(confirm('Clear all stops and start over?')){
+      state = {depot:null, stops:[], order:null, speed:state.speed, dwell:state.dwell, travelMode:state.travelMode};
+      saveState();
+      render();
+    }
+  };
+}
+
+loadState();
+</script>
+</body>
+</html>

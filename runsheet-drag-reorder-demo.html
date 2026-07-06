@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0D10">
+<title>Runsheet — Drag to Reorder Demo</title>
+<style>
+:root{
+  --bg:#0B0D10;
+  --panel:#1B1F24;
+  --panel-line:rgba(255,255,255,0.08);
+  --hi:#C6FF3D;
+  --coral:#FF6B5C;
+  --text:#F2F4F0;
+  --text-dim:#7C8389;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent; -webkit-user-select:none; user-select:none;}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  padding:18px 14px 40px;
+}
+h1{font-size:16px; margin:0 0 3px;}
+.sub{font-size:12.5px; color:var(--text-dim); margin:0 0 18px; line-height:1.5;}
+.sub b{color:var(--hi);}
+
+#list{position:relative; touch-action:none;}
+.item{
+  position:absolute; left:0; right:0; height:64px;
+  background:var(--panel); border:1px solid var(--panel-line); border-radius:10px;
+  display:flex; align-items:center; gap:10px; padding:0 12px;
+  transition:top .22s ease, box-shadow .15s ease;
+}
+.item.dragging{
+  transition:none; z-index:10; box-shadow:0 10px 24px rgba(0,0,0,0.5);
+  border-color:var(--hi); background:#22272E;
+}
+.item.late{border-left:3px solid var(--coral);}
+.badge{
+  width:24px; height:24px; border-radius:50%; background:#2C3037; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; font-size:11px;
+  font-weight:700; color:var(--text-dim);
+}
+.info{flex:1; min-width:0;}
+.name{font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.note{font-size:11.5px; color:var(--coral); margin-top:1px;}
+.handle{
+  width:34px; height:44px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  cursor:grab; touch-action:none; border-radius:8px;
+}
+.handle:active{background:rgba(255,255,255,0.06);}
+.handle svg{width:18px; height:18px;}
+.footer-note{margin-top:14px; font-size:11.5px; color:var(--text-dim); text-align:center; line-height:1.5;}
+</style>
+</head>
+<body>
+<h1>Reorder demo</h1>
+<p class="sub">Press and hold the <b>⠿ handle</b> on the right of any stop, then drag up or down. Try bumping the "running late" stop further down the queue.</p>
+<div id="list"></div>
+<div class="footer-note">This is a working interaction demo with sample stops — this exact drag behavior gets built into the real optimizer list.</div>
+
+<script>
+const ROW_H = 72; // item height + gap
+
+let stops = [
+  {id:'a', name:"Kfar Saba — Herzl St 12", note:""},
+  {id:'b', name:"Ra'anana — Ahuza St 60", note:"Running late — asked for 20 min"},
+  {id:'c', name:"Hod HaSharon — Sokolov 8", note:""},
+  {id:'d', name:"Herzliya — Sderot Hen 21", note:""},
+  {id:'e', name:"Tel Mond — Ha'atzmaut 3", note:""},
+  {id:'f', name:"Kfar Saba — Weizmann 44", note:""},
+];
+let order = stops.map(s => s.id);
+
+function indexOf(id){ return order.indexOf(id); }
+function stopById(id){ return stops.find(s => s.id === id); }
+
+function buildList(){
+  const list = document.getElementById('list');
+  list.style.height = (order.length * ROW_H - 8) + 'px';
+  list.innerHTML = order.map((id, i) => {
+    const s = stopById(id);
+    return `<div class="item${s.note ? ' late' : ''}" id="item-${id}" style="top:${i*ROW_H}px;">
+      <div class="badge" id="badge-${id}">${i+1}</div>
+      <div class="info">
+        <div class="name">${s.name}</div>
+        ${s.note ? `<div class="note">${s.note}</div>` : ''}
+      </div>
+      <div class="handle" data-id="${id}">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="8" cy="6" r="1.6" fill="#7C8389"/><circle cx="16" cy="6" r="1.6" fill="#7C8389"/><circle cx="8" cy="12" r="1.6" fill="#7C8389"/><circle cx="16" cy="12" r="1.6" fill="#7C8389"/><circle cx="8" cy="18" r="1.6" fill="#7C8389"/><circle cx="16" cy="18" r="1.6" fill="#7C8389"/></svg>
+      </div>
+    </div>`;
+  }).join('');
+  attachHandles();
+}
+
+function repositionAllExcept(draggingId){
+  order.forEach((id, i) => {
+    if(id === draggingId) return;
+    const el = document.getElementById('item-'+id);
+    el.style.top = (i*ROW_H)+'px';
+    document.getElementById('badge-'+id).textContent = i+1;
+  });
+}
+
+function attachHandles(){
+  document.querySelectorAll('.handle').forEach(handle => {
+    const id = handle.getAttribute('data-id');
+    let startY = 0, startTop = 0, dragging = false;
+
+    handle.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      dragging = true;
+      startY = e.clientY;
+      startTop = indexOf(id) * ROW_H;
+      const el = document.getElementById('item-'+id);
+      el.classList.add('dragging');
+      handle.setPointerCapture(e.pointerId);
+    });
+
+    handle.addEventListener('pointermove', (e) => {
+      if(!dragging) return;
+      const el = document.getElementById('item-'+id);
+      let newTop = startTop + (e.clientY - startY);
+      newTop = Math.max(0, Math.min(newTop, (order.length-1)*ROW_H));
+      el.style.top = newTop + 'px';
+
+      const newIndex = Math.round(newTop / ROW_H);
+      const curIndex = indexOf(id);
+      if(newIndex !== curIndex){
+        order.splice(curIndex, 1);
+        order.splice(newIndex, 0, id);
+        repositionAllExcept(id);
+        document.getElementById('badge-'+id).textContent = newIndex+1;
+      }
+    });
+
+    const end = (e) => {
+      if(!dragging) return;
+      dragging = false;
+      const el = document.getElementById('item-'+id);
+      el.classList.remove('dragging');
+      el.style.top = (indexOf(id)*ROW_H) + 'px';
+      try{ handle.releasePointerCapture(e.pointerId); }catch(err){}
+    };
+    handle.addEventListener('pointerup', end);
+    handle.addEventListener('pointercancel', end);
+  });
+}
+
+buildList();
+</script>
+</body>
+</html>

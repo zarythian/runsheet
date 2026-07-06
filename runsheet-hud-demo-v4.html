@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0D10">
+<title>Runsheet HUD — v3 Demo</title>
+<style>
+:root{
+  --bg:#0B0D10; --panel:rgba(255,255,255,0.035); --panel-line:rgba(255,255,255,0.08);
+  --hi:#C6FF3D; --hi-dim:rgba(198,255,61,0.15); --teal:#3DE0C8; --coral:#FF6B5C;
+  --amber:#FFB020; --text:#F2F4F0; --text-dim:#7C8389;
+}
+body.sun{
+  --bg:#F4F1E8; --panel:#FFFFFF; --panel-line:#D8D3C4;
+  --text:#15170F; --text-dim:#54594A; --hi:#5C8A00; --teal:#0E7D68; --coral:#C23B2E; --amber:#B5730A;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+body{margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; transition:background .25s,color .25s;}
+#app{max-width:480px; margin:0 auto; padding:14px 14px 30px; min-height:100dvh;}
+
+.topbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+.wordmark{font-size:12.5px; font-weight:700; letter-spacing:.12em; color:var(--text-dim);}
+.wordmark b{color:var(--hi);}
+.top-icons{display:flex; gap:8px;}
+.icon-btn{
+  width:40px; height:40px; border-radius:9px; border:1px solid var(--panel-line); background:var(--panel);
+  display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; color:var(--text);
+}
+.icon-btn.active{background:var(--hi-dim); border-color:var(--hi); color:var(--hi);}
+
+.stat-strip{
+  display:flex; justify-content:center; gap:14px; font-size:12px; color:var(--text-dim);
+  background:var(--panel); border:1px solid var(--panel-line); border-radius:10px; padding:8px; margin-bottom:12px;
+  font-variant-numeric:tabular-nums;
+}
+.stat-strip b{color:var(--text); font-weight:700;}
+
+.ring-wrap{position:relative; width:132px; height:132px; margin:2px auto 12px;}
+.ring-wrap svg{width:100%; height:100%; transform:rotate(-90deg);}
+.ring-track{fill:none; stroke:rgba(128,128,128,0.15); stroke-width:8;}
+.ring-fill{fill:none; stroke:var(--hi); stroke-width:8; stroke-linecap:round; filter:drop-shadow(0 0 6px rgba(198,255,61,0.5)); transition:stroke-dashoffset .5s ease;}
+.ring-center{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+.ring-num{font-size:34px; font-weight:700; line-height:1;}
+.ring-sub{font-size:10px; color:var(--text-dim); letter-spacing:.1em; margin-top:3px; text-transform:uppercase;}
+
+.stop-card{
+  background:var(--panel); border:1px solid var(--panel-line); border-radius:16px;
+  padding:16px; position:relative; touch-action:pan-y;
+}
+.swipe-hint{position:absolute; inset:0; border-radius:16px; opacity:0; pointer-events:none; transition:opacity .1s;}
+.swipe-hint.right{background:linear-gradient(90deg, rgba(198,255,61,0.18), transparent 60%);}
+.swipe-hint.left{background:linear-gradient(270deg, rgba(255,107,92,0.18), transparent 60%);}
+
+.stop-eyebrow{font-size:10.5px; color:var(--hi); letter-spacing:.12em; text-transform:uppercase; font-weight:700; margin-bottom:6px;}
+.stop-name{font-size:20px; font-weight:700; line-height:1.25;}
+.stop-notes{font-size:12.5px; color:var(--text-dim); margin-top:4px;}
+.cod-badge{
+  display:inline-flex; align-items:center; gap:5px; background:rgba(255,176,32,0.15); color:var(--amber);
+  border:1px solid rgba(255,176,32,0.35); border-radius:7px; padding:3px 8px; font-size:11.5px; font-weight:700;
+  margin-top:8px;
+}
+.price-chip{
+  display:inline-flex; align-items:center; gap:6px; background:rgba(255,176,32,0.12); color:var(--amber);
+  border:1px solid rgba(255,176,32,0.35); border-radius:8px; padding:6px 10px; font-size:13px; font-weight:700;
+  margin-top:8px; cursor:pointer;
+}
+.price-chip .edit-hint{font-size:10px; font-weight:500; color:var(--text-dim);}
+.price-input{
+  width:100%; background:rgba(128,128,128,0.08); border:1px solid var(--panel-line); color:var(--text);
+  border-radius:10px; padding:13px 14px; font-size:20px; font-weight:700; margin-bottom:12px; text-align:center;
+}
+.sheet-save{
+  width:100%; background:var(--hi); color:#101410; border:none; border-radius:10px; padding:13px; font-size:15px;
+  font-weight:700; margin-bottom:8px; cursor:pointer;
+}
+.chips{display:flex; gap:8px; margin-top:12px;}
+.chip{background:rgba(128,128,128,0.1); border:1px solid var(--panel-line); border-radius:8px; padding:6px 10px; font-size:12px; color:var(--text-dim);}
+.chip b{color:var(--text); font-weight:600;}
+
+.mini-actions{display:flex; gap:8px; margin-top:14px;}
+.mini-btn{
+  flex:1; background:var(--panel); border:1px solid var(--panel-line); color:var(--text);
+  border-radius:10px; padding:10px 4px; font-size:11.5px; font-weight:600; text-align:center;
+  display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; text-decoration:none;
+}
+.mini-btn .ic{font-size:16px;}
+.mini-btn.disabled{opacity:0.35; pointer-events:none;}
+.photo-btn.attached{background:var(--hi-dim); border-color:var(--hi); color:var(--hi);}
+
+.actions{display:flex; gap:10px; margin-top:14px;}
+.btn{flex:1; border:none; border-radius:14px; padding:16px 8px; font-size:14.5px; font-weight:700; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer;}
+.btn .icon{font-size:19px;}
+.btn-nav{background:var(--hi); color:#101410;}
+.btn-fail{background:rgba(255,107,92,0.15); color:var(--coral); border:1px solid rgba(255,107,92,0.4);}
+
+.undo-strip{display:flex; justify-content:center; margin-top:8px;}
+.undo-btn{
+  font-size:15px; font-weight:600; color:var(--text-dim); background:none; border:none; text-decoration:underline;
+  padding:10px 16px; cursor:pointer; opacity:0; transition:opacity .2s; pointer-events:none;
+}
+.undo-btn.show{opacity:1; pointer-events:auto;}
+
+/* reason sheet */
+.sheet-overlay{
+  position:fixed; inset:0; background:rgba(0,0,0,0.5); opacity:0; pointer-events:none; transition:opacity .2s; z-index:20;
+}
+.sheet-overlay.show{opacity:1; pointer-events:auto;}
+.sheet{
+  position:fixed; left:0; right:0; bottom:0; background:var(--panel); border-top:1px solid var(--panel-line);
+  border-radius:18px 18px 0 0; padding:18px 16px 26px; transform:translateY(100%); transition:transform .25s ease; z-index:21;
+  max-width:480px; margin:0 auto;
+}
+.sheet.show{transform:translateY(0);}
+.sheet h3{font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-dim); margin:0 0 12px;}
+.reason-opt{
+  width:100%; text-align:left; background:rgba(128,128,128,0.08); border:1px solid var(--panel-line); color:var(--text);
+  border-radius:10px; padding:13px 14px; margin-bottom:8px; font-size:14.5px; font-weight:500; cursor:pointer;
+}
+.sheet-cancel{width:100%; text-align:center; background:none; border:none; color:var(--text-dim); padding:10px; font-size:13.5px; cursor:pointer;}
+
+.mascot-wrap{display:flex; flex-direction:column; align-items:center; gap:4px; padding:14px 4px 4px; min-height:150px;}
+.mascot-msg{font-size:14px; font-weight:700; opacity:0; transition:opacity .25s ease; min-height:18px; text-align:center;}
+.mascot-msg.show{opacity:1;}
+.mascot-msg.happy-text{color:var(--hi);} .mascot-msg.sad-text{color:var(--coral);}
+.mascot-char{position:relative; overflow:visible;}
+.nameplate{text-align:center; font-size:10px; font-weight:700; color:var(--hi); letter-spacing:.06em;}
+.nameplate .hp-bar{width:44px; height:4px; background:rgba(128,128,128,0.25); border-radius:2px; margin:2px auto 0; overflow:hidden;}
+.nameplate .hp-fill{height:100%; background:var(--hi); transition:width .4s;}
+.spark{position:absolute; pointer-events:none; font-size:13px; opacity:0; animation:sparkUp .7s ease-out forwards;}
+@keyframes sparkUp{0%{opacity:1; transform:translate(0,0) scale(.6);}100%{opacity:0; transform:translate(var(--dx),-34px) scale(1.1);}}
+.mascot-body{transform-origin:60px 70px;}
+.mascot-body.idle{animation:idleBob 2.6s ease-in-out infinite;}
+.mascot-body.happy{animation:happyHop .5s ease-out 2;}
+.mascot-body.sad{animation:sadShake .6s ease-out;}
+@keyframes idleBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-3px);}}
+@keyframes happyHop{0%{transform:translateY(0) rotate(0);}35%{transform:translateY(-14px) rotate(-4deg);}60%{transform:translateY(0) rotate(3deg);}100%{transform:translateY(0) rotate(0);}}
+@keyframes sadShake{0%,100%{transform:translateX(0) translateY(0);}20%{transform:translateX(-3px) translateY(3px);}40%{transform:translateX(3px) translateY(4px);}60%{transform:translateX(-2px) translateY(4px);}80%{transform:translateX(2px) translateY(2px);}}
+.scythe{transform-origin:85px 65px;} .scythe.swing{animation:scytheSwing .45s ease-out;}
+@keyframes scytheSwing{0%{transform:rotate(0);}40%{transform:rotate(-75deg);}70%{transform:rotate(12deg);}100%{transform:rotate(0);}}
+.enemy{transform-origin:114px 56px;} .enemy.hit{animation:enemyHit .4s ease-out;}
+.enemy.dead{transition:transform .6s ease, opacity .6s ease; transform:rotate(85deg) translate(-3px,10px); opacity:0.45; animation:none;}
+@keyframes enemyHit{0%{transform:translate(0,0) rotate(0);}30%{transform:translate(5px,-2px) rotate(8deg);}60%{transform:translate(-3px,1px) rotate(-5deg);}100%{transform:translate(0,0) rotate(0);}}
+.dmg-num{position:absolute; font-weight:800; font-size:16px; color:#FF3B3B; text-shadow:0 1px 3px rgba(0,0,0,.85); pointer-events:none; opacity:0; animation:dmgFloat .8s ease-out forwards;}
+@keyframes dmgFloat{0%{opacity:1; transform:translateY(0) scale(.7);}20%{transform:translateY(-6px) scale(1.2);}100%{opacity:0; transform:translateY(-32px) scale(1);}}
+
+.upnext{margin-top:14px;}
+.upnext-head{font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.1em; margin-bottom:7px;}
+.upnext-list{display:flex; gap:8px; overflow-x:auto; padding-bottom:4px;}
+.upnext-item{flex-shrink:0; background:var(--panel); border:1px solid var(--panel-line); border-radius:10px; padding:8px 12px; font-size:11.5px; color:var(--text-dim); white-space:nowrap; position:relative;}
+.upnext-item b{color:var(--text); font-weight:600; display:block; font-size:12px;}
+
+.attention{margin-top:12px;}
+.attention-head{font-size:10.5px; color:var(--coral); text-transform:uppercase; letter-spacing:.1em; margin-bottom:7px;}
+.attention-item{
+  display:flex; justify-content:space-between; align-items:center; background:rgba(255,107,92,0.08);
+  border:1px solid rgba(255,107,92,0.3); border-radius:9px; padding:9px 11px; margin-bottom:6px; font-size:12.5px;
+}
+.attention-item .r{color:var(--coral); font-size:11px;}
+.attention-item{cursor:pointer;}
+.contact-opt{
+  display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+  background:rgba(128,128,128,0.08); border:1px solid var(--panel-line); color:var(--text);
+  border-radius:10px; padding:13px 14px; margin-bottom:8px; font-size:14.5px; font-weight:500; cursor:pointer;
+}
+.contact-opt.disabled{opacity:0.35; pointer-events:none;}
+
+.done-screen{display:none; flex-direction:column; align-items:center; text-align:center; padding:30px 0;}
+.done-screen .big{font-size:20px; font-weight:700;}
+.done-screen .sub{color:var(--text-dim); font-size:13px; margin-top:6px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div class="wordmark">RUN<b>—</b>SHEET</div>
+    <div class="top-icons">
+      <button class="icon-btn" id="sunToggle" title="Sunlight mode">☀️</button>
+      <button class="icon-btn" id="undoIconBtn" title="Undo" style="opacity:0.35;" disabled>↩︎</button>
+    </div>
+  </div>
+
+  <div class="stat-strip">
+    <span>Today: <b id="statKm">0.0 km</b></span>
+    <span>Delivered: <b id="statDone">0</b></span>
+    <span class="earnings-toggle" id="earningsToggle" style="cursor:pointer; text-decoration:underline;">💰 tap for earnings</span>
+  </div>
+
+  <div class="ring-wrap">
+    <svg viewBox="0 0 100 100"><circle class="ring-track" cx="50" cy="50" r="44"></circle><circle class="ring-fill" id="ringFill" cx="50" cy="50" r="44" stroke-dasharray="276.5" stroke-dashoffset="276.5"></circle></svg>
+    <div class="ring-center"><div class="ring-num" id="ringNum">1</div><div class="ring-sub" id="ringSub">of 6</div></div>
+  </div>
+
+  <div class="stop-card" id="stopCard">
+    <div class="swipe-hint right" id="swipeRight"></div>
+    <div class="swipe-hint left" id="swipeLeft"></div>
+    <div class="stop-eyebrow" id="stopEyebrow">NEXT STOP</div>
+    <div class="stop-name" id="stopName">—</div>
+    <div class="stop-notes" id="stopNotes"></div>
+    <div id="codBadgeWrap"></div>
+    <button class="price-chip" id="priceChip">💰 ₪<span id="priceVal">85</span> <span class="edit-hint">tap to edit</span></button>
+    <div class="chips"><div class="chip">📍 <b id="chipDist">—</b></div><div class="chip">⏱ <b id="chipEta">—</b></div></div>
+
+    <button class="btn btn-nav" id="navBtn" style="width:100%; margin-top:12px; flex-direction:row; gap:6px; padding:14px;"><span class="icon">↗</span>Navigate</button>
+
+    <div class="mini-actions" id="miniActions" style="margin-top:10px;"></div>
+
+    <button class="mini-btn photo-btn" id="photoBtn" style="width:100%; margin-top:8px; flex-direction:row; gap:6px;">
+      <span class="ic">📷</span><span id="photoLabel">Add delivery photo</span>
+    </button>
+    <input type="file" accept="image/*" capture="environment" id="photoInput" style="display:none;">
+
+    <div class="actions">
+      <button class="btn btn-nav" id="doneBtn"><span class="icon">✓</span>Done</button>
+      <button class="btn btn-fail" id="failBtn"><span class="icon">⚠</span>Issue</button>
+    </div>
+  </div>
+
+  <div class="undo-strip"><button class="undo-btn" id="undoBtn">↩ Undo last action</button></div>
+
+  <div class="mascot-wrap" id="mascotWrap">
+    <div class="nameplate">RUNSHEET <span id="mascotLevel">lv-1</span><div class="hp-bar"><div class="hp-fill" id="mascotHpFill" style="width:0%;"></div></div></div>
+    <div class="mascot-msg" id="mascotMsg"></div>
+    <div class="mascot-char" id="mascotCharWrap">
+      <svg class="mascot-svg" viewBox="0 0 140 90" width="108" height="70">
+        <g class="mascot-body idle" id="mascotBody">
+          <ellipse cx="60" cy="76" rx="26" ry="4" fill="rgba(0,0,0,0.35)"></ellipse>
+          <path d="M42 40 L36 72 L84 72 L78 40 Q60 34 42 40 Z" fill="var(--hi)" stroke="rgba(0,0,0,0.15)"></path>
+          <path d="M60 34 L78 40 L84 72 L60 72 Z" fill="#000" opacity="0.38"></path>
+          <path d="M48 38 L44 52 L76 52 L72 38 Q60 33 48 38 Z" fill="#3E4A3A"></path>
+          <path d="M60 33 L72 38 L76 52 L60 52 Z" fill="#000" opacity="0.4"></path>
+          <rect x="42" y="51" width="36" height="6" rx="2" fill="#6B4226"></rect>
+          <rect x="56" y="51" width="8" height="6" rx="1.5" fill="#8a5a34"></rect>
+          <rect x="30" y="42" width="10" height="16" rx="4" fill="#2E332F"></rect>
+          <rect x="80" y="42" width="10" height="16" rx="4" fill="#2E332F"></rect>
+          <circle cx="35" cy="60" r="4.5" fill="#E8B692"></circle>
+          <circle cx="85" cy="60" r="4.5" fill="#E8B692"></circle>
+          <rect x="55" y="33" width="10" height="9" fill="#E8B692"></rect>
+          <circle cx="60" cy="24" r="16" fill="#E8B692"></circle>
+          <path d="M60 8 A16 16 0 0 1 60 40 Z" fill="#000" opacity="0.35"></path>
+          <path d="M42 22 Q40 7 60 6.5 Q80 7 78 22 L78 34 Q74 25 70 34 L70 25 Q60 29 50 25 L50 34 Q46 25 42 34 Z" fill="#B5591F"></path>
+          <path d="M60 6.5 Q80 7 78 22 L78 34 Q74 25 70 34 L70 25 Q60 29 60 27 Z" fill="#000" opacity="0.4"></path>
+          <path d="M48 13 Q60 9 72 13 L70 17 Q60 14 50 17 Z" fill="#B5591F"></path>
+          <path d="M43 12 Q60 -2 77 12 L74 17 Q60 8 46 17 Z" fill="#3E4A3A" stroke="#2A332C" stroke-width="0.5"></path>
+          <path d="M60 -2 Q77 12 74 17 L60 8 Z" fill="#000" opacity="0.42"></path>
+          <path d="M60 20 L69 19 L69 27 L60 26 Z" fill="#1A1A1A"></path>
+          <rect x="59" y="20" width="12" height="2" fill="#1A1A1A" transform="rotate(-4 59 20)"></rect>
+          <circle cx="54" cy="24" r="2.2" fill="#2A2A2A"></circle>
+          <path id="mascotMouth" d="M53 31 Q60 35 67 31" stroke="#8a4a3a" stroke-width="2" fill="none" stroke-linecap="round"></path>
+        </g>
+        <g class="scythe" id="scytheGroup">
+          <line x1="85" y1="65" x2="102" y2="12" stroke="#3E2A1A" stroke-width="3" stroke-linecap="round"></line>
+          <line x1="85" y1="65" x2="102" y2="12" stroke="#5A3E26" stroke-width="1.2" stroke-linecap="round"></line>
+          <path d="M102 12 Q132 2 126 30 Q120 44 104 34 Q96 29 98 20 Q99 15 102 12 Z" fill="#C7CFD3" stroke="#5C6469" stroke-width="1.2"></path>
+          <path d="M104 34 Q120 44 126 30 Q129 20 122 10" fill="none" stroke="#8A9299" stroke-width="1"></path>
+          <circle cx="101" cy="15" r="2.6" fill="#8a1f1f" stroke="#5c1313" stroke-width="0.8"></circle>
+        </g>
+        <g class="enemy" id="enemyGroup">
+          <ellipse cx="114" cy="66" rx="10" ry="3" fill="rgba(0,0,0,0.3)"></ellipse>
+          <circle cx="114" cy="56" r="10" fill="#5A7D4B"></circle>
+          <path d="M107 49 L110 44 L112 50 Z" fill="#5A7D4B"></path>
+          <path d="M116 50 L120 44 L118 51 Z" fill="#5A7D4B"></path>
+          <circle cx="111" cy="55" r="1.6" fill="#1A1A1A" id="enemyEye1"></circle>
+          <circle cx="117" cy="55" r="1.6" fill="#1A1A1A" id="enemyEye2"></circle>
+          <path d="M110 60 Q114 58 118 60" stroke="#1A1A1A" stroke-width="1.4" fill="none" stroke-linecap="round" id="enemyMouth"></path>
+          <g id="enemyXEyes" style="opacity:0;">
+            <line x1="108.5" y1="53" x2="112.5" y2="57" stroke="#1A1A1A" stroke-width="1.3"></line>
+            <line x1="112.5" y1="53" x2="108.5" y2="57" stroke="#1A1A1A" stroke-width="1.3"></line>
+            <line x1="114.5" y1="53" x2="118.5" y2="57" stroke="#1A1A1A" stroke-width="1.3"></line>
+            <line x1="118.5" y1="53" x2="114.5" y2="57" stroke="#1A1A1A" stroke-width="1.3"></line>
+          </g>
+        </g>
+      </svg>
+    </div>
+  </div>
+
+  <div class="done-screen" id="doneScreen"><div class="big">🏁 Route complete</div><div class="sub" id="doneSub"></div></div>
+
+  <div class="upnext" id="upnextWrap"><div class="upnext-head">Up next</div><div class="upnext-list" id="upnextList"></div></div>
+  <div class="attention" id="attentionWrap" style="display:none;"><div class="attention-head">⚠ Needs attention</div><div id="attentionList"></div></div>
+</div>
+
+<div class="sheet" id="priceSheet">
+  <h3>Price for this delivery</h3>
+  <input type="number" class="price-input" id="priceInputField" inputmode="decimal">
+  <button class="sheet-save" id="priceSave">Save — applies to future stops too</button>
+  <button class="sheet-cancel" id="priceCancel">Cancel</button>
+</div>
+
+<div class="sheet-overlay" id="sheetOverlay"></div>
+<div class="sheet" id="reasonSheet">
+  <h3>What happened at this stop?</h3>
+  <button class="reason-opt" data-reason="No answer">No answer</button>
+  <button class="reason-opt" data-reason="Wrong address">Wrong address</button>
+  <button class="reason-opt" data-reason="Refused">Refused</button>
+  <button class="reason-opt" data-reason="Gate locked">Gate locked</button>
+  <button class="sheet-cancel" id="sheetCancel">Cancel</button>
+</div>
+
+<div class="sheet" id="contactSheet">
+  <h3 id="contactSheetTitle">Contact customer</h3>
+  <a class="contact-opt" id="contactCall" href="tel:"><span>📞</span> Call</a>
+  <button class="contact-opt" id="contactWhatsapp"><span>💬</span> Message on WhatsApp</button>
+  <button class="sheet-cancel" id="contactCancel">Cancel</button>
+</div>
+
+<script>
+const stops = [
+  {name:"Kfar Saba — Herzl St 12", notes:"Gate code #4471", lat:32.1858,lng:34.9077, dist:1.4, eta:"5 min", phone:"0501234567", cod:null},
+  {name:"Ra'anana — Ahuza St 60", notes:"Ring bell twice", lat:32.1847,lng:34.8709, dist:3.1, eta:"9 min", phone:"0527654321", cod:85},
+  {name:"Hod HaSharon — Sokolov 8", notes:"", lat:32.1554,lng:34.8892, dist:2.6, eta:"7 min", phone:null, cod:null},
+  {name:"Herzliya — Sderot Hen 21", notes:"Leave at door", lat:32.1663,lng:34.8436, dist:4.8, eta:"13 min", phone:"0541122334", cod:null},
+  {name:"Tel Mond — Ha'atzmaut 3", notes:"", lat:32.2503,lng:34.9709, dist:6.2, eta:"16 min", phone:null, cod:120},
+  {name:"Kfar Saba — Weizmann 44", notes:"Call on arrival", lat:32.1789,lng:34.9155, dist:1.9, eta:"6 min", phone:"0509988776", cod:null},
+];
+
+let i = 0, kmTotal = 0, monthlyBase = 4230, doneCount = 0, photoAttached = false;
+let currentPrice = 85;
+let runEarnings = 0;
+let lastAction = null; // {type:'done'|'fail', index, reason, prevStats}
+const attentionLog = [];
+const R = 44, CIRC = 2*Math.PI*R;
+document.getElementById('ringFill').setAttribute('stroke-dasharray', CIRC.toFixed(1));
+
+const happyLines = ["Nice one! 🎉","Boom, delivered.","One down, rolling on."];
+const sadLines = ["Logged — moving on.","Tough one, next!","Noted, keep rolling."];
+
+function vibrate(pattern){ if(navigator.vibrate) navigator.vibrate(pattern); }
+
+function render(){
+  if(i >= stops.length){
+    document.getElementById('stopCard').style.display='none';
+    document.querySelector('.actions').style.display='none';
+    document.getElementById('doneScreen').style.display='flex';
+    document.getElementById('upnextWrap').style.display='none';
+    document.getElementById('doneSub').textContent = doneCount+' delivered · '+kmTotal.toFixed(1)+' km · ₪'+runEarnings+' earned';
+    document.getElementById('ringFill').setAttribute('stroke-dashoffset', 0);
+    document.getElementById('mascotHpFill').style.width='100%';
+    refreshEarningsDisplay();
+    renderAttention();
+    return;
+  }
+  const s = stops[i];
+  document.getElementById('ringNum').textContent = i+1;
+  document.getElementById('ringSub').textContent = 'of '+stops.length;
+  document.getElementById('ringFill').setAttribute('stroke-dashoffset', (CIRC*(1-i/stops.length)).toFixed(1));
+  document.getElementById('mascotLevel').textContent = 'lv-'+(i+1);
+  document.getElementById('mascotHpFill').style.width = Math.round((i/stops.length)*100)+'%';
+
+  document.getElementById('stopEyebrow').textContent = i===0?'FIRST STOP':'NEXT STOP';
+  document.getElementById('stopName').textContent = s.name;
+  document.getElementById('stopNotes').textContent = s.notes;
+  document.getElementById('chipDist').textContent = s.dist+' km';
+  document.getElementById('chipEta').textContent = s.eta;
+  document.getElementById('navBtn').onclick = () => {
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=bicycling`, '_blank');
+  };
+
+  document.getElementById('codBadgeWrap').innerHTML = '';
+  document.getElementById('priceVal').textContent = currentPrice;
+
+  const mini = [];
+  mini.push(s.phone
+    ? `<a class="mini-btn" href="tel:${s.phone}"><span class="ic">📞</span>Call</a>`
+    : `<div class="mini-btn disabled"><span class="ic">📞</span>No number</div>`);
+  mini.push(`<button class="mini-btn" id="etaBtn"><span class="ic">💬</span>Share ETA</button>`);
+  document.getElementById('miniActions').innerHTML = mini.join('');
+  const etaBtn = document.getElementById('etaBtn');
+  if(etaBtn) etaBtn.onclick = () => {
+    const msg = encodeURIComponent(`On my way, ETA ~${s.eta} 🛵`);
+    const url = s.phone ? `https://wa.me/${s.phone.replace(/^0/,'972')}?text=${msg}` : `https://wa.me/?text=${msg}`;
+    window.open(url, '_blank');
+  };
+
+  photoAttached = false;
+  document.getElementById('photoLabel').textContent = 'Add delivery photo';
+  document.getElementById('photoBtn').classList.remove('attached');
+
+  document.getElementById('doneBtn').onclick = () => { vibrate(15); handleDone(); };
+  document.getElementById('failBtn').onclick = () => { vibrate(15); openSheet(); };
+
+  renderUpnext();
+  renderAttention();
+}
+
+function renderUpnext(){
+  const upnext = stops.slice(i+1, i+4);
+  document.getElementById('upnextList').innerHTML = upnext.map((u,idx)=>
+    `<div class="upnext-item"><b>${i+2+idx}. ${u.name.split(' — ')[0]}</b>${u.name.split(' — ')[1]||''}</div>`
+  ).join('') || '<div class="upnext-item">Last stop</div>';
+}
+
+function renderAttention(){
+  const wrap = document.getElementById('attentionWrap');
+  if(attentionLog.length === 0){ wrap.style.display='none'; return; }
+  wrap.style.display='block';
+  document.getElementById('attentionList').innerHTML = attentionLog.map((a,idx) =>
+    `<div class="attention-item" data-idx="${idx}"><span>${a.name.split(' — ')[0]}</span><span class="r">${a.reason}</span></div>`
+  ).join('');
+  document.querySelectorAll('.attention-item').forEach(el => {
+    el.onclick = () => openContactSheet(attentionLog[el.getAttribute('data-idx')]);
+  });
+}
+
+let activeContact = null;
+function openContactSheet(entry){
+  activeContact = entry;
+  document.getElementById('contactSheetTitle').textContent = entry.name.split(' — ')[0];
+  const callBtn = document.getElementById('contactCall');
+  if(entry.phone){
+    callBtn.classList.remove('disabled');
+    callBtn.setAttribute('href', 'tel:'+entry.phone);
+    callBtn.innerHTML = '<span>📞</span> Call';
+  } else {
+    callBtn.classList.add('disabled');
+    callBtn.setAttribute('href', 'tel:');
+    callBtn.innerHTML = '<span>📞</span> No number on file';
+  }
+  document.getElementById('sheetOverlay').classList.add('show');
+  document.getElementById('contactSheet').classList.add('show');
+}
+function closeContactSheet(){
+  document.getElementById('sheetOverlay').classList.remove('show');
+  document.getElementById('contactSheet').classList.remove('show');
+}
+document.getElementById('contactCancel').onclick = closeContactSheet;
+document.getElementById('contactCall').addEventListener('click', closeContactSheet);
+document.getElementById('contactWhatsapp').onclick = () => {
+  if(!activeContact) return;
+  const msg = encodeURIComponent(`Hi, this is your courier — following up on your delivery (${activeContact.reason.toLowerCase()}).`);
+  const phonePart = activeContact.phone ? activeContact.phone.replace(/^0/,'972') : '';
+  window.open(`https://wa.me/${phonePart}?text=${msg}`, '_blank');
+  closeContactSheet();
+};
+document.getElementById('sheetOverlay').addEventListener('click', () => { closeSheet(); closeContactSheet(); });
+
+function handleDone(){
+  const isLast = (i === stops.length - 1);
+  lastAction = {type:'done', index:i, prevKm:kmTotal, prevDone:doneCount, prevRunEarnings:runEarnings};
+  kmTotal += stops[i].dist; doneCount++; runEarnings += currentPrice;
+  updateStats();
+  mascotReact('happy', isLast);
+  showUndo();
+  setTimeout(()=>{ i++; render(); }, 500);
+}
+
+function openSheet(){
+  document.getElementById('sheetOverlay').classList.add('show');
+  document.getElementById('reasonSheet').classList.add('show');
+}
+function closeSheet(){
+  document.getElementById('sheetOverlay').classList.remove('show');
+  document.getElementById('reasonSheet').classList.remove('show');
+}
+document.getElementById('sheetCancel').onclick = closeSheet;
+document.getElementById('sheetOverlay').onclick = closeSheet;
+document.querySelectorAll('.reason-opt').forEach(btn => {
+  btn.onclick = () => {
+    const reason = btn.getAttribute('data-reason');
+    lastAction = {type:'fail', index:i, reason, prevKm:kmTotal, prevDone:doneCount, prevRunEarnings:runEarnings};
+    attentionLog.push({name:stops[i].name, reason, phone: stops[i].phone});
+    closeSheet();
+    vibrate([10,40,10]);
+    mascotReact('sad');
+    showUndo();
+    setTimeout(()=>{ i++; render(); }, 500);
+  };
+});
+
+function showUndo(){
+  document.getElementById('undoBtn').classList.add('show');
+  document.getElementById('undoIconBtn').style.opacity = '1';
+  document.getElementById('undoIconBtn').disabled = false;
+}
+function doUndo(){
+  if(!lastAction) return;
+  vibrate(10);
+  if(lastAction.type === 'fail'){ attentionLog.pop(); }
+  kmTotal = lastAction.prevKm; doneCount = lastAction.prevDone; runEarnings = lastAction.prevRunEarnings;
+  i = lastAction.index;
+  updateStats();
+  document.getElementById('undoBtn').classList.remove('show');
+  document.getElementById('undoIconBtn').style.opacity = '0.35';
+  document.getElementById('undoIconBtn').disabled = true;
+  document.getElementById('stopCard').style.display='block';
+  document.querySelector('.actions').style.display='flex';
+  document.getElementById('doneScreen').style.display='none';
+  document.getElementById('upnextWrap').style.display='block';
+  lastAction = null;
+  render();
+}
+document.getElementById('undoBtn').onclick = doUndo;
+document.getElementById('undoIconBtn').onclick = doUndo;
+
+function updateStats(){
+  document.getElementById('statKm').textContent = kmTotal.toFixed(1)+' km';
+  document.getElementById('statDone').textContent = doneCount;
+  refreshEarningsDisplay();
+}
+
+let earningsTimer = null, earningsVisible = false;
+function refreshEarningsDisplay(){
+  if(!earningsVisible) return;
+  document.getElementById('earningsToggle').innerHTML = `This run: <b>₪${runEarnings}</b> · This month: <b>₪${monthlyBase + runEarnings}</b>`;
+}
+document.getElementById('earningsToggle').onclick = () => {
+  const el = document.getElementById('earningsToggle');
+  earningsVisible = true;
+  refreshEarningsDisplay();
+  el.style.textDecoration = 'none';
+  clearTimeout(earningsTimer);
+  earningsTimer = setTimeout(() => {
+    earningsVisible = false;
+    el.textContent = '💰 tap for earnings';
+    el.style.textDecoration = 'underline';
+  }, 30000);
+};
+
+document.getElementById('priceChip').onclick = () => {
+  document.getElementById('priceInputField').value = currentPrice;
+  document.getElementById('sheetOverlay').classList.add('show');
+  document.getElementById('priceSheet').classList.add('show');
+};
+document.getElementById('priceCancel').onclick = () => {
+  document.getElementById('sheetOverlay').classList.remove('show');
+  document.getElementById('priceSheet').classList.remove('show');
+};
+document.getElementById('priceSave').onclick = () => {
+  const v = parseFloat(document.getElementById('priceInputField').value);
+  if(!isNaN(v) && v >= 0){ currentPrice = v; document.getElementById('priceVal').textContent = currentPrice; }
+  document.getElementById('sheetOverlay').classList.remove('show');
+  document.getElementById('priceSheet').classList.remove('show');
+};
+
+document.getElementById('photoBtn').onclick = () => document.getElementById('photoInput').click();
+document.getElementById('photoInput').onchange = (e) => {
+  if(e.target.files && e.target.files[0]){
+    photoAttached = true;
+    document.getElementById('photoLabel').textContent = 'Photo attached ✓';
+    document.getElementById('photoBtn').classList.add('attached');
+    vibrate(10);
+  }
+};
+
+document.getElementById('sunToggle').onclick = () => {
+  document.body.classList.toggle('sun');
+  document.getElementById('sunToggle').classList.toggle('active');
+};
+
+function spark(){
+  const wrap = document.getElementById('mascotCharWrap');
+  for(let k=0;k<6;k++){
+    const s = document.createElement('span'); s.className='spark'; s.textContent=['✨','🎉','⚡'][k%3];
+    s.style.left=(36+Math.random()*36)+'px'; s.style.top=(10+Math.random()*10)+'px';
+    s.style.setProperty('--dx', ((Math.random()-0.5)*50)+'px');
+    wrap.appendChild(s); setTimeout(()=>s.remove(),750);
+  }
+}
+function spawnFloatText(text, color){
+  const wrap = document.getElementById('mascotCharWrap');
+  const d = document.createElement('div');
+  d.className='dmg-num'; d.style.color = color;
+  d.textContent = text;
+  d.style.left='96px'; d.style.top='18px';
+  wrap.appendChild(d);
+  setTimeout(()=>d.remove(), 800);
+}
+function killEnemy(){
+  const enemy = document.getElementById('enemyGroup');
+  enemy.classList.add('dead');
+  document.getElementById('enemyEye1').style.opacity = 0;
+  document.getElementById('enemyEye2').style.opacity = 0;
+  document.getElementById('enemyMouth').style.opacity = 0;
+  document.getElementById('enemyXEyes').style.opacity = 1;
+}
+function mascotReact(kind, isLast){
+  const body=document.getElementById('mascotBody'), mouth=document.getElementById('mascotMouth'), msg=document.getElementById('mascotMsg');
+  body.classList.remove('idle','happy','sad'); void body.offsetWidth;
+  if(kind==='happy'){
+    body.classList.add('happy'); mouth.setAttribute('d','M52 30 Q60 38 68 30');
+    msg.textContent = isLast ? "Finisher! 🏁" : happyLines[Math.floor(Math.random()*happyLines.length)];
+    msg.className='mascot-msg show happy-text'; spark();
+    const scythe=document.getElementById('scytheGroup'), enemy=document.getElementById('enemyGroup');
+    scythe.classList.remove('swing'); void scythe.offsetWidth; scythe.classList.add('swing');
+    setTimeout(()=>{
+      enemy.classList.remove('hit'); void enemy.offsetWidth; enemy.classList.add('hit');
+      if(isLast){
+        spawnFloatText('99', '#FF3B3B');
+        setTimeout(()=>killEnemy(), 320);
+      } else {
+        spawnFloatText('69', '#FF3B3B');
+        setTimeout(()=>spawnFloatText('+70', '#3DE0C8'), 550);
+      }
+    },180);
+  } else {
+    body.classList.add('sad'); mouth.setAttribute('d','M52 34 Q60 29 68 34');
+    msg.textContent = sadLines[Math.floor(Math.random()*sadLines.length)];
+    msg.className='mascot-msg show sad-text';
+  }
+  setTimeout(()=>{
+    body.classList.remove('happy','sad'); body.classList.add('idle');
+    mouth.setAttribute('d','M53 31 Q60 35 67 31'); msg.classList.remove('show');
+  },1400);
+}
+
+// swipe gestures
+(function(){
+  const card = document.getElementById('stopCard');
+  let startX=0, dx=0, dragging=false;
+  card.addEventListener('touchstart', e=>{ startX=e.touches[0].clientX; dragging=true; }, {passive:true});
+  card.addEventListener('touchmove', e=>{
+    if(!dragging) return;
+    dx = e.touches[0].clientX - startX;
+    card.style.transform = `translateX(${dx*0.4}px) rotate(${dx*0.01}deg)`;
+    document.getElementById('swipeRight').style.opacity = dx>30 ? Math.min(1,dx/120) : 0;
+    document.getElementById('swipeLeft').style.opacity = dx<-30 ? Math.min(1,-dx/120) : 0;
+  }, {passive:true});
+  card.addEventListener('touchend', ()=>{
+    dragging=false;
+    card.style.transform='';
+    document.getElementById('swipeRight').style.opacity=0;
+    document.getElementById('swipeLeft').style.opacity=0;
+    if(dx > 90){ vibrate(15); handleDone(); }
+    else if(dx < -90){ vibrate(15); openSheet(); }
+    dx=0;
+  });
+})();
+
+render();
+</script>
+</body>
+</html>
