@@ -17,6 +17,15 @@ function escapeHtml(s){
 
 function stopById(id){ return state.stops.find(s => s.id === id); }
 
+// Prefer the courier's own typed text as the stop name — it's usually more
+// meaningful than a geocoder's formatted label. Only fall back to the resolved
+// label when the input itself wasn't human-readable (raw coordinates or a link).
+function defaultStopName(inputText, resolved){
+  if(extractLatLng(inputText)) return resolved.label || null;
+  if(/^https?:\/\//i.test(inputText.trim())) return resolved.label || null;
+  return inputText.trim();
+}
+
 // ---------- leg recomputation ----------
 async function recomputeLegs(){
   const orderedStops = state.order.map(id => stopById(id)).filter(Boolean);
@@ -324,7 +333,7 @@ function setupSingleAddHandlers(){
       try{
         const r = await resolveStopText(val);
         if(r) coord = r;
-        else stopStatus2.innerHTML = '<div class="err-text">Address not found. Try a more specific address or paste coordinates.</div>';
+        else stopStatus2.innerHTML = '<div class="err-text">Couldn\'t pinpoint that address precisely. This area has patchy address coverage — search it in Google Maps or Waze instead and paste the link here (much more reliable), or paste lat,lng directly.</div>';
       }catch(e){
         stopStatus2.innerHTML = e.message === 'no-api-key'
           ? '<div class="err-text">No API key set. Add one in Settings, or paste a lat,lng / Google Maps link instead.</div>'
@@ -334,7 +343,7 @@ function setupSingleAddHandlers(){
       if(!coord) return;
     }
     const nameInput = document.getElementById('nameInput');
-    const name = (nameInput.value.trim()) || (coord.label) || ('Stop '+(state.stops.length+1));
+    const name = (nameInput.value.trim()) || defaultStopName(val, coord) || ('Stop '+(state.stops.length+1));
     const notes = document.getElementById('notesInput').value.trim();
     const phone = document.getElementById('phoneInput').value.trim() || null;
     const codRaw = document.getElementById('codInput').value.trim();
@@ -367,7 +376,8 @@ function setupBulkAddHandlers(){
         const r = await resolveStopText(line);
         if(r){
           const id = genId();
-          state.stops.push({id, name: r.label || ('Stop '+(state.stops.length+1)), lat:r.lat, lng:r.lng, notes:'', phone:null, cod:null, status:'pending', skipReason:null});
+          const name = defaultStopName(line, r) || ('Stop '+(state.stops.length+1));
+          state.stops.push({id, name, lat:r.lat, lng:r.lng, notes:'', phone:null, cod:null, status:'pending', skipReason:null});
           if(state.order) state.order.push(id);
           added++;
         } else failed.push(line);
@@ -379,7 +389,7 @@ function setupBulkAddHandlers(){
     if(state.order){ await recomputeLegs(); }
     saveState();
     renderSetup();
-    status.textContent = added+' stop(s) added.' + (failed.length ? ' Couldn\'t parse: '+failed.join(' | ') : '');
+    status.textContent = added+' stop(s) added.' + (failed.length ? ' Couldn\'t pinpoint precisely (search these in Google Maps/Waze and paste the link instead): '+failed.join(' | ') : '');
     if(added) bulkInput.value = failed.join('\n');
   };
 }

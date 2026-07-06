@@ -1,4 +1,4 @@
-const CACHE = 'runsheet-v2';
+const CACHE = 'runsheet-v3';
 const SHELL = [
   './',
   './index.html',
@@ -28,23 +28,25 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// App shell: cache-first. Everything else (ORS API calls, maps links): network, no caching.
+// App shell: network-first so a fresh deploy is always picked up while online;
+// falls back to cache only when offline. (ORS API calls, maps links: untouched,
+// no same-origin match so they always go straight to network.)
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if(url.origin !== self.location.origin) return;
+  if(event.request.method !== 'GET') return;
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if(cached) return cached;
-      return fetch(event.request).then((res) => {
-        if(res.ok && event.request.method === 'GET'){
-          const clone = res.clone();
-          caches.open(CACHE).then((cache) => cache.put(event.request, clone));
-        }
-        return res;
-      }).catch(() => {
-        if(event.request.mode === 'navigate') return caches.match('./index.html');
-      });
-    })
+    fetch(event.request).then((res) => {
+      if(res.ok){
+        const clone = res.clone();
+        caches.open(CACHE).then((cache) => cache.put(event.request, clone));
+      }
+      return res;
+    }).catch(() =>
+      caches.match(event.request).then((cached) =>
+        cached || (event.request.mode === 'navigate' ? caches.match('./index.html') : undefined)
+      )
+    )
   );
 });
