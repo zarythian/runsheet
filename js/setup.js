@@ -422,8 +422,12 @@ function setupBulkAddHandlers(){
   document.getElementById('bulkParseBtn').onclick = async () => {
     const bulkInput = document.getElementById('bulkInput');
     const status = document.getElementById('bulkStatus');
+    const parseBtn = document.getElementById('bulkParseBtn');
     const lines = bulkInput.value.split('\n').map(l => l.trim()).filter(Boolean);
     if(lines.length === 0) return;
+    // Disabled for the whole run: a second tap mid-parse would re-read the same
+    // still-uncleared textarea and add every line a second time.
+    parseBtn.disabled = true;
     status.textContent = 'Parsing '+lines.length+' line(s)… (one at a time, to stay within the free geocoders\' rate limits)';
     let added = 0, approxCount = 0;
     const failed = [];
@@ -451,7 +455,10 @@ function setupBulkAddHandlers(){
     status.textContent = added+' stop(s) added'
       + (approxCount ? ' ('+approxCount+' matched the street only — check the exact house number on arrival)' : '')
       + '.' + (failed.length ? ' Couldn\'t pinpoint at all (search these in Google Maps/Waze and paste the link instead): '+failed.join(' | ') : '');
-    if(added) bulkInput.value = failed.join('\n');
+    // Always clear — leftover text (even just the failed lines) sitting in the box
+    // is exactly what caused duplicate stops when a later paste got run through it.
+    bulkInput.value = '';
+    parseBtn.disabled = false;
   };
 }
 
@@ -559,6 +566,16 @@ function setupStopEditSheetHandlers(){
   document.getElementById('editStopCancelBtn').onclick = () => closeSheet('stopEditSheet');
 }
 
+function setupClearStopsHandler(){
+  document.getElementById('clearStopsBtn').onclick = () => {
+    if(state.stops.length === 0) return;
+    if(confirm('Clear all '+state.stops.length+' stop(s) and route data? This can\'t be undone.')){
+      resetForNewRoute();
+      renderSetup();
+    }
+  };
+}
+
 function initSetup(){
   setupModeToggleHandlers();
   setupSingleAddHandlers();
@@ -566,6 +583,7 @@ function initSetup(){
   setupDepotHandlers();
   setupRouteSettingsHandlers();
   setupStopEditSheetHandlers();
+  setupClearStopsHandler();
   if(!state.depot) requestGpsDepot();
   renderSetup();
 }
