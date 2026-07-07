@@ -61,6 +61,33 @@ const ORS_PROFILE = {bicycling:'cycling-regular', driving:'driving-car', walking
 
 function orsKey(){ return (state.settings.orsKey || '').trim(); }
 
+// Sharon-area focus for live autocomplete — centered so Kfar Saba, Ra'anana and
+// Hod HaSharon (this app's service area) all fall well inside the radius.
+const AUTOCOMPLETE_FOCUS = {lat: 32.19, lng: 34.90};
+const AUTOCOMPLETE_RADIUS_KM = 10;
+
+// Live-typing suggestions via ORS's autocomplete endpoint, filtered to the Sharon
+// area. Returns [{label,lat,lng}], [] if nothing/no key, or null if the request
+// was aborted (signal) — callers should treat null as "ignore, a newer one is in flight".
+async function orsAutocomplete(text, signal){
+  const key = orsKey();
+  if(!key) return [];
+  const url = 'https://api.openrouteservice.org/geocode/autocomplete?api_key='+encodeURIComponent(key)
+    +'&text='+encodeURIComponent(text)+'&size=5'
+    +'&focus.point.lat='+AUTOCOMPLETE_FOCUS.lat+'&focus.point.lon='+AUTOCOMPLETE_FOCUS.lng
+    +'&boundary.circle.lat='+AUTOCOMPLETE_FOCUS.lat+'&boundary.circle.lon='+AUTOCOMPLETE_FOCUS.lng
+    +'&boundary.circle.radius='+AUTOCOMPLETE_RADIUS_KM;
+  try{
+    const res = await fetch(url, {signal});
+    if(!res.ok) return [];
+    const data = await res.json();
+    return (data.features || []).map(f => ({label: f.properties.label, lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0]}));
+  }catch(e){
+    if(e.name === 'AbortError') return null;
+    return [];
+  }
+}
+
 // Try ORS Pelias search first, biased to Israel (this app's service area) so
 // queries don't match similarly-named places elsewhere. Returns {lat,lng,label}
 // or null if nothing at address/street/venue precision was found.

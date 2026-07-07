@@ -280,6 +280,55 @@ function openStopEditSheet(id){
   openSheet('stopEditSheet');
 }
 
+// ---------- address autocomplete (single-add only) ----------
+let autocompleteTimer = null;
+let autocompleteController = null;
+let autocompleteItems = [];
+
+function hideAutocomplete(){
+  clearTimeout(autocompleteTimer);
+  if(autocompleteController){ autocompleteController.abort(); autocompleteController = null; }
+  autocompleteItems = [];
+  const list = document.getElementById('autocompleteList');
+  list.innerHTML = '';
+  list.style.display = 'none';
+}
+
+function renderAutocompleteList(stopInput, items){
+  autocompleteItems = items;
+  const list = document.getElementById('autocompleteList');
+  if(!items.length){ list.innerHTML = ''; list.style.display = 'none'; return; }
+  list.innerHTML = items.map((it,i) =>
+    '<li class="autocomplete-item" data-idx="'+i+'">'
+    + '<span class="autocomplete-badge" title="Predicted — please confirm">!</span>'
+    + '<span class="autocomplete-label">'+escapeHtml(it.label)+'</span>'
+    + '</li>'
+  ).join('');
+  list.style.display = 'block';
+  list.querySelectorAll('.autocomplete-item').forEach(el => {
+    // Prevent the input from blurring on tap, so selection fires before any blur-hide logic.
+    el.addEventListener('mousedown', e => e.preventDefault());
+    el.addEventListener('click', () => {
+      const it = autocompleteItems[parseInt(el.getAttribute('data-idx'),10)];
+      hideAutocomplete();
+      stopInput.value = it.label;
+      stopInput.dispatchEvent(new Event('input'));
+      stopInput.focus();
+    });
+  });
+}
+
+function scheduleAutocomplete(stopInput, val){
+  clearTimeout(autocompleteTimer);
+  if(autocompleteController){ autocompleteController.abort(); autocompleteController = null; }
+  autocompleteTimer = setTimeout(async () => {
+    autocompleteController = new AbortController();
+    const items = await orsAutocomplete(val, autocompleteController.signal);
+    if(items === null) return; // aborted — a newer keystroke superseded this request
+    renderAutocompleteList(stopInput, items);
+  }, 300);
+}
+
 // ---------- single add ----------
 function setupSingleAddHandlers(){
   const stopInput = document.getElementById('stopInput');
@@ -296,11 +345,13 @@ function setupSingleAddHandlers(){
       nameFieldWrap.style.display = 'none';
       extraFieldsWrap.style.display = 'none';
       addBtn.disabled = true;
+      hideAutocomplete();
       return;
     }
     if(isShortLink(val) && !extractLatLng(val)){
       addBtn.disabled = true;
       stopStatus.innerHTML = '<div class="warn-text">Short links (goo.gl) don\'t contain coordinates. Open it once in Maps, then paste the full link or long-press the pin to copy "lat,lng".</div>';
+      hideAutocomplete();
       return;
     }
     const coord = extractLatLng(val);
@@ -315,10 +366,18 @@ function setupSingleAddHandlers(){
         const nm = extractPlaceName(val);
         if(nm) nameInput.value = nm;
       }
+      hideAutocomplete();
+    } else if(/^https?:\/\//i.test(val)){
+      stopStatus.innerHTML = '<div class="hint">Looks like a link — it\'ll be looked up when you tap Add.</div>';
+      hideAutocomplete();
     } else {
       stopStatus.innerHTML = '<div class="hint">Looks like an address — it\'ll be looked up when you tap Add.</div>';
+      if(val.length >= 3) scheduleAutocomplete(stopInput, val);
+      else hideAutocomplete();
     }
   });
+
+  stopInput.addEventListener('blur', () => setTimeout(hideAutocomplete, 150));
 
   addBtn.onclick = async () => {
     const val = stopInput.value.trim();
