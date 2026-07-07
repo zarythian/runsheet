@@ -61,34 +61,53 @@ const ORS_PROFILE = {bicycling:'cycling-regular', driving:'driving-car', walking
 
 function orsKey(){ return (state.settings.orsKey || '').trim(); }
 
-// Sharon-area focus for live autocomplete — centered so Kfar Saba, Ra'anana and
-// Hod HaSharon (this app's service area) all fall well inside the radius.
-const AUTOCOMPLETE_FOCUS = {lat: 32.19, lng: 34.90};
-const AUTOCOMPLETE_RADIUS_KM = 10;
+// This app's service area: Kfar Saba / Ra'anana / Hod HaSharon plus the ring of
+// neighbouring moshavim around them (Ramot HaShavim, Kfar Malal, Tzofit, Even
+// Yehuda, Sde Warburg, etc). Used to bias/filter every geocode call the same way,
+// whether it's live autocomplete or a final commit-time lookup (ORS or Nominatim).
+const SHARON_BIAS = {lat: 32.19, lng: 34.90};
+const SHARON_RADIUS_KM = 15;
 
-// Live-typing suggestions via ORS's autocomplete endpoint, filtered to the Sharon
-// area. Returns [{label,lat,lng}], [] if nothing/no key, or null if the request
-// was aborted (signal) — callers should treat null as "ignore, a newer one is in flight".
+// Pelias labels read like "Weizmann Avenue, HM, Israel" — drop the trailing
+// region-code/country segments so a label used as a stop name doesn't look like that.
+function cleanLabel(label){
+  if(!label) return label;
+  const parts = label.split(',').map(p => p.trim()).filter(Boolean);
+  return (parts.length > 2 ? parts.slice(0, parts.length - 2) : parts).join(', ');
+}
+
+// Rough lat/lng bounding box for a given radius (km) around a center point —
+// used for Nominatim's viewbox bias, which (unlike Pelias) has no simple radius param.
+function bboxFromRadius(lat, lng, radiusKm){
+  const dLat = radiusKm / 111;
+  const dLng = radiusKm / (111 * Math.cos(lat * Math.PI/180));
+  return {left: lng-dLng, top: lat+dLat, right: lng+dLng, bottom: lat-dLat};
+}
+
+// Live-typing suggestions via ORS's autocomplete endpoint, filtered to this app's
+// service area. Returns [{label,lat,lng}], [] if nothing/no key, or null if the
+// request was aborted (signal) — callers should treat null as "ignore, a newer
+// one is in flight".
 async function orsAutocomplete(text, signal){
   const key = orsKey();
   if(!key) return [];
   const url = 'https://api.openrouteservice.org/geocode/autocomplete?api_key='+encodeURIComponent(key)
     +'&text='+encodeURIComponent(text)+'&size=5'
-    +'&focus.point.lat='+AUTOCOMPLETE_FOCUS.lat+'&focus.point.lon='+AUTOCOMPLETE_FOCUS.lng
-    +'&boundary.circle.lat='+AUTOCOMPLETE_FOCUS.lat+'&boundary.circle.lon='+AUTOCOMPLETE_FOCUS.lng
-    +'&boundary.circle.radius='+AUTOCOMPLETE_RADIUS_KM;
+    +'&focus.point.lat='+SHARON_BIAS.lat+'&focus.point.lon='+SHARON_BIAS.lng
+    +'&boundary.circle.lat='+SHARON_BIAS.lat+'&boundary.circle.lon='+SHARON_BIAS.lng
+    +'&boundary.circle.radius='+SHARON_RADIUS_KM;
   try{
     const res = await fetch(url, {signal});
     if(!res.ok) return [];
     const data = await res.json();
-    return (data.features || []).map(f => ({label: f.properties.label, lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0]}));
+    return (data.features || []).map(f => ({label: cleanLabel(f.properties.label), lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0]}));
   }catch(e){
     if(e.name === 'AbortError') return null;
     return [];
   }
 }
 
-// Try ORS Pelias search first, biased to Israel (this app's service area) so
+// Try ORS Pelias search first, biased and filtered to this app's service area so
 // queries don't match similarly-named places elsewhere. Returns {lat,lng,label}
 // or null if nothing at address/street/venue precision was found.
 async function geocodeViaORS(text){
@@ -96,7 +115,8 @@ async function geocodeViaORS(text){
   if(!key) throw new Error('no-api-key');
   const url = 'https://api.openrouteservice.org/geocode/search?api_key='+encodeURIComponent(key)
     +'&text='+encodeURIComponent(text)+'&size=3'
-    +'&boundary.country=ISR&focus.point.lat=32.18&focus.point.lon=34.91';
+    +'&boundary.country=ISR&focus.point.lat='+SHARON_BIAS.lat+'&focus.point.lon='+SHARON_BIAS.lng
+    +'&boundary.circle.lat='+SHARON_BIAS.lat+'&boundary.circle.lon='+SHARON_BIAS.lng+'&boundary.circle.radius='+SHARON_RADIUS_KM;
   const res = await fetch(url);
   if(!res.ok) throw new Error('geocode-http-'+res.status);
   const data = await res.json();
@@ -104,7 +124,7 @@ async function geocodeViaORS(text){
   const f = features.find(feat => ACCEPTABLE_GEOCODE_LAYERS.includes(feat.properties.layer));
   if(!f) return null;
   // 'street' layer means it found the right road but not this specific house number.
-  return {lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0], label: f.properties.label, approx: f.properties.layer === 'street'};
+  return {lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0], label: cleanLabel(f.properties.label), approx: f.properties.layer === 'street'};
 }
 
 // Fallback: Nominatim (OpenStreetMap) has meaningfully better street-level
@@ -112,8 +132,10 @@ async function geocodeViaORS(text){
 // often only has a city-center match where Nominatim has the actual street.
 // No API key needed; free public endpoint, used sparingly (one lookup at a time).
 async function geocodeViaNominatim(text){
+  const bbox = bboxFromRadius(SHARON_BIAS.lat, SHARON_BIAS.lng, SHARON_RADIUS_KM);
   const url = 'https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(text)
-    +'&format=jsonv2&limit=3&countrycodes=il&addressdetails=1';
+    +'&format=jsonv2&limit=3&countrycodes=il&addressdetails=1'
+    +'&viewbox='+bbox.left+','+bbox.top+','+bbox.right+','+bbox.bottom+'&bounded=1';
   const res = await fetch(url);
   if(!res.ok) return null;
   const results = await res.json();
@@ -121,7 +143,11 @@ async function geocodeViaNominatim(text){
   if(!hit) return null;
   // No house_number match means we only found the street, not this exact address point.
   const approx = !(hit.address && hit.address.house_number);
-  return {lat: parseFloat(hit.lat), lng: parseFloat(hit.lon), label: hit.display_name.split(',').slice(0,3).join(',').trim(), approx};
+  // Nominatim's display_name is a full admin hierarchy ("street, city, sub-district,
+  // district, country") rather than Pelias's "name, region, country" shape, so this
+  // needs its own trim (just street + city) instead of the Pelias-shaped cleanLabel.
+  const label = hit.display_name.split(',').slice(0,2).map(s => s.trim()).join(', ');
+  return {lat: parseFloat(hit.lat), lng: parseFloat(hit.lon), label, approx};
 }
 
 // Geocode free text, trying ORS first, then Nominatim if ORS has nothing precise
