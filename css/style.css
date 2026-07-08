@@ -273,7 +273,7 @@ input::placeholder,textarea::placeholder{color:#6b7280;}
 @keyframes sadShake{0%,100%{transform:translateX(0) translateY(0);}20%{transform:translateX(-3px) translateY(3px);}40%{transform:translateX(3px) translateY(4px);}60%{transform:translateX(-2px) translateY(4px);}80%{transform:translateX(2px) translateY(2px);}}
 .scythe{transform-origin:85px 65px;} .scythe.swing{animation:scytheSwing .45s ease-out;}
 @keyframes scytheSwing{0%{transform:rotate(0);}40%{transform:rotate(-75deg);}70%{transform:rotate(12deg);}100%{transform:rotate(0);}}
-.enemy{transform-origin:114px 56px;} .enemy.hit{animation:enemyHit .4s ease-out;}
+.enemy{transform-origin:140px 60px;} .enemy.hit{animation:enemyHit .4s ease-out;}
 .enemy.dead{transition:transform .6s ease, opacity .6s ease; transform:rotate(85deg) translate(-3px,10px); opacity:0.45; animation:none;}
 @keyframes enemyHit{0%{transform:translate(0,0) rotate(0);}30%{transform:translate(5px,-2px) rotate(8deg);}60%{transform:translate(-3px,1px) rotate(-5deg);}100%{transform:translate(0,0) rotate(0);}}
 .dmg-num{position:absolute; font-weight:800; font-size:16px; color:#FF3B3B; text-shadow:0 1px 3px rgba(0,0,0,.85); pointer-events:none; opacity:0; animation:dmgFloat .8s ease-out forwards;}

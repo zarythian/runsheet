@@ -1,5 +1,33 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <rect width="100" height="100" fill="#0B0D10"/>
-  <path d="M27 62 L50 38 L73 62" stroke="#C6FF3D" stroke-width="6" fill="none" stroke-dasharray="7 6" stroke-linecap="round"/>
-  <circle cx="50" cy="38" r="6" fill="#3DE0C8"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#C6FF3D" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#C6FF3D" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="512" height="512" fill="#0B0D10"/>
+  <rect width="512" height="512" fill="url(#glow)"/>
+
+  <!-- Sword artwork scaled in slightly so it stays clear of a circular maskable crop. -->
+  <g transform="translate(256,256) scale(0.82) translate(-256,-256)">
+    <path d="M256,88 L268,112 L276,330 L236,330 L244,112 Z" fill="#E7ECEE" stroke="#9AA3A8" stroke-width="4"/>
+    <line x1="250" y1="120" x2="250" y2="315" stroke="#FFFFFF" stroke-width="3" opacity="0.28"/>
+    <line x1="257" y1="120" x2="257" y2="315" stroke="#5C6469" stroke-width="3" opacity="0.4"/>
+
+    <path d="M180,336 Q138,322 149,299 Q170,318 206,333 Z" fill="#D4AF6A" stroke="#9C7A3E" stroke-width="2"/>
+    <path d="M332,336 Q374,322 363,299 Q342,318 306,333 Z" fill="#D4AF6A" stroke="#9C7A3E" stroke-width="2"/>
+    <rect x="234" y="326" width="44" height="16" rx="5" fill="#D4AF6A" stroke="#9C7A3E" stroke-width="2"/>
+
+    <rect x="240" y="342" width="32" height="90" rx="9" fill="#3E2A1A"/>
+    <line x1="240" y1="356" x2="272" y2="349" stroke="#5A3A20" stroke-width="4"/>
+    <line x1="240" y1="372" x2="272" y2="365" stroke="#5A3A20" stroke-width="4"/>
+    <line x1="240" y1="388" x2="272" y2="381" stroke="#5A3A20" stroke-width="4"/>
+    <line x1="240" y1="404" x2="272" y2="397" stroke="#5A3A20" stroke-width="4"/>
+    <line x1="240" y1="420" x2="272" y2="413" stroke="#5A3A20" stroke-width="4"/>
+
+    <circle cx="256" cy="440" r="27" fill="#D4AF6A" stroke="#9C7A3E" stroke-width="3"/>
+    <circle cx="256" cy="440" r="13" fill="#3DE0C8"/>
+    <ellipse cx="251" cy="434" rx="5" ry="3" fill="#FFFFFF" opacity="0.5"/>
+  </g>
 </svg>
