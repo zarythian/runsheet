@@ -1,4 +1,4 @@
-const CACHE = 'runsheet-v3';
+const CACHE = 'runsheet-v4';
 const SHELL = [
   './',
   './index.html',
@@ -8,6 +8,8 @@ const SHELL = [
   './js/geo.js',
   './js/optimizer.js',
   './js/setup.js',
+  './js/scheduled.js',
+  './js/photos.js',
   './js/hud.js',
   './js/app.js',
   './icons/icon.svg',

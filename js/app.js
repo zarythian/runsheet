@@ -26,6 +26,7 @@ function initSettingsSheet(){
     document.getElementById('orsKeyInput').value = state.settings.orsKey;
     document.getElementById('navAppInput').value = state.settings.navApp;
     document.getElementById('reasonsInput').value = state.settings.reasons.join(', ');
+    document.getElementById('reminderTimeInput').value = state.settings.reminderTime;
     openSheet('settingsSheet');
   };
   document.getElementById('settingsSaveBtn').onclick = () => {
@@ -33,6 +34,7 @@ function initSettingsSheet(){
     state.settings.navApp = document.getElementById('navAppInput').value;
     const reasons = document.getElementById('reasonsInput').value.split(',').map(r => r.trim()).filter(Boolean);
     if(reasons.length) state.settings.reasons = reasons;
+    state.settings.reminderTime = document.getElementById('reminderTimeInput').value || '20:00';
     saveState();
     closeSheet('settingsSheet');
     renderSetup();
@@ -41,6 +43,7 @@ function initSettingsSheet(){
   document.getElementById('clearAllBtn').onclick = () => {
     if(confirm('Clear all stops and route data? This can\'t be undone.')){
       resetForNewRoute();
+      clearAllPhotos();
       closeSheet('settingsSheet');
       showView('setup');
     }
@@ -54,6 +57,7 @@ function init(){
   if(state.settings.sunMode) document.body.classList.add('sun');
   initSettingsSheet();
   initSetup();
+  initScheduled();
   initHud();
   showView(state.view);
 

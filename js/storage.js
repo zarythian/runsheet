@@ -9,6 +9,8 @@ function defaultState(){
     order: null,               // array of stop ids, post-depot visiting order
     legs: null,                // [{fromId,toId,km,min}] aligned to order (fromId null = depot)
     legSource: null,           // 'ors' | 'haversine'
+    scheduled: [],             // future deliveries not yet on today's route:
+                               // {id,name,lat,lng,notes,phone,cod,company,date:'YYYY-MM-DD'}
     settings: {
       orsKey: '',
       speed: 18,               // km/h, used for haversine time fallback
@@ -16,7 +18,8 @@ function defaultState(){
       travelMode: 'bicycling', // bicycling | driving | walking
       navApp: 'google',        // google | waze
       reasons: ['No answer','Wrong address','Refused','Gate locked'],
-      sunMode: false
+      sunMode: false,
+      reminderTime: '20:00'    // evening time for scheduled-delivery calendar reminders
     },
     route: {
       startedAt: null,
@@ -53,7 +56,9 @@ function saveState(){
 
 function resetForNewRoute(){
   const settings = state.settings;
+  const scheduled = state.scheduled;
   state = defaultState();
   state.settings = settings;
+  state.scheduled = scheduled;
   saveState();
 }

@@ -83,6 +83,31 @@
     </div>
 
     <div class="card">
+      <h2>Upcoming deliveries</h2>
+      <div class="row">
+        <div class="field"><label>Company / client (optional)</label><input type="text" id="schedCompanyInput" placeholder="e.g. Wolt, or a client's name"></div>
+        <div class="field"><label>Delivery date</label><input type="date" id="schedDateInput"></div>
+      </div>
+      <div class="field">
+        <label>Paste a Google Maps link, address, or lat,lng</label>
+        <input type="text" id="schedAddressInput" placeholder="Paste link, or type address / lat,lng" autocomplete="off">
+      </div>
+      <div id="schedDetectStatus"></div>
+      <div class="field" id="schedExtraWrap" style="display:none;">
+        <label>Label</label>
+        <input type="text" id="schedNameInput" placeholder="e.g. Kfar Saba — Herzl 12">
+        <div class="row" style="margin-top:8px;">
+          <div><label>Phone (optional)</label><input type="tel" id="schedPhoneInput" placeholder="05x-xxxxxxx"></div>
+          <div><label>COD amount (optional)</label><input type="number" id="schedCodInput" placeholder="₪"></div>
+        </div>
+        <div class="field" style="margin-top:8px;"><label>Delivery notes (optional)</label><input type="text" id="schedNotesInput"></div>
+      </div>
+      <button class="btn btn-ghost" id="schedAddBtn" style="margin-top:10px;" disabled>+ Add scheduled delivery</button>
+      <ul class="sched-list" id="scheduledList" style="margin-top:14px;"></ul>
+      <div class="hint">Tap 📅 to download a calendar reminder for the evening before (set the time in Settings). Tap → to pull it into today's route once it's due.</div>
+    </div>
+
+    <div class="card">
       <h2>Route settings</h2>
       <div class="row">
         <div class="field"><label>Avg. speed (km/h)</label><input type="number" id="speedInput" min="1"></div>
@@ -255,6 +280,11 @@
     <label>Skip reasons (comma-separated)</label>
     <input type="text" id="reasonsInput" placeholder="No answer, Wrong address, Refused, Gate locked">
   </div>
+  <div class="field">
+    <label>Scheduled-delivery reminder time</label>
+    <input type="time" id="reminderTimeInput">
+    <div class="hint">Calendar reminders for upcoming deliveries (downloaded from the "Upcoming deliveries" list) are set for the evening before, at this time.</div>
+  </div>
   <button class="sheet-save" id="settingsSaveBtn">Save settings</button>
   <button class="reason-opt" id="clearAllBtn" style="color:var(--coral);">Clear all stops &amp; route data</button>
   <button class="sheet-cancel" id="settingsCancelBtn">Close</button>
@@ -268,6 +298,7 @@
     <div class="field"><label>Phone</label><input type="tel" id="editPhoneInput" placeholder="05x-xxxxxxx"></div>
     <div class="field"><label>COD amount</label><input type="number" id="editCodInput" placeholder="₪"></div>
   </div>
+  <div id="editPhotoWrap" style="display:none;"></div>
   <button class="sheet-save" id="editStopSaveBtn">Save</button>
   <button class="reason-opt" id="editStopDeleteBtn" style="color:var(--coral);">Remove this stop</button>
   <button class="sheet-cancel" id="editStopCancelBtn">Cancel</button>
@@ -297,6 +328,8 @@
 <script src="js/geo.js"></script>
 <script src="js/optimizer.js"></script>
 <script src="js/setup.js"></script>
+<script src="js/scheduled.js"></script>
+<script src="js/photos.js"></script>
 <script src="js/hud.js"></script>
 <script src="js/app.js"></script>
 </body>

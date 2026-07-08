@@ -152,6 +152,7 @@ function attachStopItemHandlers(){
       state.stops = state.stops.filter(s => s.id !== id);
       if(state.order){ state.order = state.order.filter(oid => oid !== id); state.legs = null; }
       saveState();
+      deletePhoto(id);
       if(state.order){ recomputeLegs().then(()=>{ saveState(); renderSetup(); }); }
       else renderSetup();
     };
@@ -269,6 +270,26 @@ function renderResults(){
 }
 
 // ---------- stop edit sheet ----------
+let editPhotoUrl = null;
+
+async function renderEditPhotoPreview(s){
+  const wrap = document.getElementById('editPhotoWrap');
+  if(editPhotoUrl){ URL.revokeObjectURL(editPhotoUrl); editPhotoUrl = null; }
+  if(!s.hasPhoto){ wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+  const blob = await getPhoto(s.id);
+  if(!blob){ wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+  editPhotoUrl = URL.createObjectURL(blob);
+  wrap.style.display = 'block';
+  wrap.innerHTML = '<div class="photo-preview"><img src="'+editPhotoUrl+'" alt="Delivery photo">'
+    + '<button class="link-btn" id="editPhotoRemoveBtn">Remove photo</button></div>';
+  document.getElementById('editPhotoRemoveBtn').onclick = async () => {
+    await deletePhoto(s.id);
+    s.hasPhoto = false;
+    saveState();
+    renderEditPhotoPreview(s);
+  };
+}
+
 function openStopEditSheet(id){
   const s = stopById(id);
   if(!s) return;
@@ -277,6 +298,7 @@ function openStopEditSheet(id){
   document.getElementById('editNotesInput').value = s.notes || '';
   document.getElementById('editPhoneInput').value = s.phone || '';
   document.getElementById('editCodInput').value = s.cod != null ? s.cod : '';
+  renderEditPhotoPreview(s);
   openSheet('stopEditSheet');
 }
 
@@ -559,6 +581,7 @@ function setupStopEditSheetHandlers(){
     state.stops = state.stops.filter(s => s.id !== editingStopId);
     if(state.order) state.order = state.order.filter(id => id !== editingStopId);
     saveState();
+    deletePhoto(editingStopId);
     closeSheet('stopEditSheet');
     if(state.order){ recomputeLegs().then(()=>{ saveState(); renderSetup(); }); }
     else renderSetup();
@@ -571,6 +594,7 @@ function setupClearStopsHandler(){
     if(state.stops.length === 0) return;
     if(confirm('Clear all '+state.stops.length+' stop(s) and route data? This can\'t be undone.')){
       resetForNewRoute();
+      clearAllPhotos();
       renderSetup();
     }
   };

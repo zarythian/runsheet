@@ -1,8 +1,6 @@
 // HUD screen — mascot, animations and interaction patterns ported verbatim from
 // runsheet-hud-demo-v4.html, wired to real state (stops/legs/route progress) instead of demo data.
 
-let photoAttached = false;
-
 function vibrate(pattern){ if(navigator.vibrate) navigator.vibrate(pattern); }
 
 function routeStops(){ return (state.order || []).map(id => stopById(id)).filter(Boolean); }
@@ -25,14 +23,19 @@ function initHud(){
   document.getElementById('newRouteBtn').onclick = () => {
     if(confirm('Start a new route? This clears today\'s stops and stats.')){
       resetForNewRoute();
+      clearAllPhotos();
       showView('setup');
     }
   };
 
   document.getElementById('photoBtn').onclick = () => document.getElementById('photoInput').click();
-  document.getElementById('photoInput').onchange = (e) => {
+  document.getElementById('photoInput').onchange = async (e) => {
     if(e.target.files && e.target.files[0]){
-      photoAttached = true;
+      const s = routeStops()[state.route.currentIndex];
+      if(!s) return;
+      await savePhoto(s.id, e.target.files[0]);
+      s.hasPhoto = true;
+      saveState();
       document.getElementById('photoLabel').textContent = 'Photo attached ✓';
       document.getElementById('photoBtn').classList.add('attached');
       vibrate(10);
@@ -176,9 +179,8 @@ function renderHud(){
     window.open(url, '_blank');
   };
 
-  photoAttached = false;
-  document.getElementById('photoLabel').textContent = 'Add delivery photo';
-  document.getElementById('photoBtn').classList.remove('attached');
+  document.getElementById('photoLabel').textContent = s.hasPhoto ? 'Photo attached ✓' : 'Add delivery photo';
+  document.getElementById('photoBtn').classList.toggle('attached', !!s.hasPhoto);
 
   renderUpnext();
   renderAttention();
