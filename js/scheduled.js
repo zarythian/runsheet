@@ -117,7 +117,7 @@ function promoteScheduled(id){
   if(!item) return;
   const notes = (item.company ? '['+item.company+'] ' : '') + (item.notes || '');
 
-  const dup = findDuplicateStop(item.lat, item.lng);
+  const dup = findDuplicateStop(item.lat, item.lng, item.approx, item.name);
   const shouldMerge = !!dup && confirm('This looks like the same address as "'+dup.name+'", already in today\'s route. Combine into that stop instead of adding a new one?');
 
   state.scheduled = state.scheduled.filter(s => s.id !== id);
@@ -127,7 +127,7 @@ function promoteScheduled(id){
     state.stops.push({
       id: genId(), name: item.name, lat: item.lat, lng: item.lng,
       notes: notes.trim(), phone: item.phone, cod: item.cod,
-      status: 'pending', skipReason: null
+      status: 'pending', skipReason: null, approx: !!item.approx, sourceText: normalizeAddressText(item.name)
     });
     if(state.order) state.order.push(state.stops[state.stops.length-1].id);
   }
@@ -218,7 +218,7 @@ function setupScheduledHandlers(){
 
     state.scheduled.push({
       id: genId(), name, lat: coord.lat, lng: coord.lng,
-      notes, phone, cod, company, date: dateInput.value
+      notes, phone, cod, company, date: dateInput.value, approx: !!coord.approx
     });
     saveState();
 

@@ -8,11 +8,30 @@ let editingStopId = null;
 // ---------- duplicate-address detection (single-add, bulk-add, scheduled promote) ----------
 // Two geocode calls for the literal same address rarely land on the exact same
 // float — this radius absorbs that drift while staying tight enough not to
-// flag genuinely different (if nearby) addresses.
-const DUPLICATE_STOP_RADIUS_KM = 0.03; // ~30m
+// flag genuinely different (if nearby) addresses. Once neither point is a
+// confirmed house-number match, though, this app's service area has thin OSM
+// house-level coverage (verified directly against the geocoders) — a "street"
+// match can legitimately jump a hundred-plus meters between two calls for the
+// literal same query, so that case needs a much looser radius.
+const DUPLICATE_STOP_RADIUS_KM = 0.03;        // ~30m — both points confirmed to house level
+const DUPLICATE_STOP_RADIUS_APPROX_KM = 0.4;  // ~400m — either point is only street-level
 
-function findDuplicateStop(lat, lng){
-  return state.stops.find(s => haversine({lat,lng}, s) <= DUPLICATE_STOP_RADIUS_KM) || null;
+function normalizeAddressText(text){
+  return String(text || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+// `approx`/`text` describe the *incoming* point being checked. Text equality
+// (the courier re-pasting the identical line) is checked first and doesn't
+// care about coordinates at all — it's the one signal that's completely
+// immune to the geocoder returning a different point for the same query on a
+// second pass, which is exactly what was defeating the coordinate-only check.
+function findDuplicateStop(lat, lng, approx, text){
+  const normText = text ? normalizeAddressText(text) : null;
+  return state.stops.find(s => {
+    if(normText && s.sourceText && s.sourceText === normText) return true;
+    const radius = (s.approx || approx) ? DUPLICATE_STOP_RADIUS_APPROX_KM : DUPLICATE_STOP_RADIUS_KM;
+    return haversine({lat,lng}, s) <= radius;
+  }) || null;
 }
 
 // Fold a new stop's details into an existing one instead of adding a second
@@ -469,14 +488,14 @@ function setupSingleAddHandlers(){
     const codRaw = document.getElementById('codInput').value.trim();
     const cod = codRaw ? parseFloat(codRaw) : null;
 
-    const dup = findDuplicateStop(coord.lat, coord.lng);
+    const dup = findDuplicateStop(coord.lat, coord.lng, coord.approx, val);
     let mergedIntoDup = false;
     if(dup){
       mergedIntoDup = confirm('This looks like the same address as "'+dup.name+'", already in the route. Combine into that stop instead of adding a new one?');
       if(mergedIntoDup) mergeIntoStop(dup, {notes, phone, cod});
     }
     if(!mergedIntoDup){
-      state.stops.push({id: genId(), name, lat: coord.lat, lng: coord.lng, notes, phone, cod, status:'pending', skipReason:null});
+      state.stops.push({id: genId(), name, lat: coord.lat, lng: coord.lng, notes, phone, cod, status:'pending', skipReason:null, approx: !!coord.approx, sourceText: normalizeAddressText(val)});
       if(state.order) state.order.push(state.stops[state.stops.length-1].id);
     }
 
@@ -516,13 +535,13 @@ function setupBulkAddHandlers(){
           // (same coords already in the route, e.g. from re-pasting the same
           // batch) is silently skipped rather than added again, and counted
           // separately from real parse failures.
-          const dup = findDuplicateStop(r.lat, r.lng);
+          const dup = findDuplicateStop(r.lat, r.lng, r.approx, line);
           if(dup){
             dupCount++;
           } else {
             const id = genId();
             const name = defaultStopName(line, r) || ('Stop '+(state.stops.length+1));
-            state.stops.push({id, name, lat:r.lat, lng:r.lng, notes:'', phone:null, cod:null, status:'pending', skipReason:null});
+            state.stops.push({id, name, lat:r.lat, lng:r.lng, notes:'', phone:null, cod:null, status:'pending', skipReason:null, approx: !!r.approx, sourceText: normalizeAddressText(line)});
             if(state.order) state.order.push(id);
             added++;
             if(r.approx) approxCount++;
