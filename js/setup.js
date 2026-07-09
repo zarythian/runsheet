@@ -17,7 +17,11 @@ const DUPLICATE_STOP_RADIUS_KM = 0.03;        // ~30m — both points confirmed 
 const DUPLICATE_STOP_RADIUS_APPROX_KM = 0.4;  // ~400m — either point is only street-level
 
 function normalizeAddressText(text){
-  return String(text || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  // sanitizeText() (geo.js) strips invisible bidi/control characters that RTL
+  // keyboards silently insert — without it, two visually-identical pastes of
+  // the same address can carry different invisible characters and compare
+  // unequal here even though nothing looks different on screen.
+  return sanitizeText(String(text || '')).toLowerCase().replace(/\s+/g, ' ');
 }
 
 // `approx`/`text` describe the *incoming* point being checked. Text equality
