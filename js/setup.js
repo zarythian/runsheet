@@ -5,6 +5,31 @@ function genId(){ return Date.now()+'-'+Math.random().toString(36).slice(2,7); }
 let pendingCoord = null;   // resolved {lat,lng} for the single-add field, if locally parseable
 let editingStopId = null;
 
+// ---------- duplicate-address detection (single-add, bulk-add, scheduled promote) ----------
+// Two geocode calls for the literal same address rarely land on the exact same
+// float — this radius absorbs that drift while staying tight enough not to
+// flag genuinely different (if nearby) addresses.
+const DUPLICATE_STOP_RADIUS_KM = 0.03; // ~30m
+
+function findDuplicateStop(lat, lng){
+  return state.stops.find(s => haversine({lat,lng}, s) <= DUPLICATE_STOP_RADIUS_KM) || null;
+}
+
+// Fold a new stop's details into an existing one instead of adding a second
+// entry for the same address. Notes are appended (not replaced) since they're
+// usually per-parcel; phone only fills in if the existing stop doesn't have
+// one; COD amounts are summed (multiple parcels to one address often each
+// carry their own collect-on-delivery amount).
+function mergeIntoStop(existing, incoming){
+  if(incoming.notes){
+    existing.notes = existing.notes ? existing.notes+' | '+incoming.notes : incoming.notes;
+  }
+  if(!existing.phone && incoming.phone) existing.phone = incoming.phone;
+  if(incoming.cod != null){
+    existing.cod = (existing.cod != null ? existing.cod : 0) + incoming.cod;
+  }
+}
+
 function fmtKm(km){ return km.toFixed(1)+' km'; }
 function fmtMin(min){
   if(min < 60) return Math.round(min)+' min';
@@ -443,12 +468,24 @@ function setupSingleAddHandlers(){
     const phone = document.getElementById('phoneInput').value.trim() || null;
     const codRaw = document.getElementById('codInput').value.trim();
     const cod = codRaw ? parseFloat(codRaw) : null;
-    state.stops.push({id: genId(), name, lat: coord.lat, lng: coord.lng, notes, phone, cod, status:'pending', skipReason:null});
-    if(state.order) state.order.push(state.stops[state.stops.length-1].id);
+
+    const dup = findDuplicateStop(coord.lat, coord.lng);
+    let mergedIntoDup = false;
+    if(dup){
+      mergedIntoDup = confirm('This looks like the same address as "'+dup.name+'", already in the route. Combine into that stop instead of adding a new one?');
+      if(mergedIntoDup) mergeIntoStop(dup, {notes, phone, cod});
+    }
+    if(!mergedIntoDup){
+      state.stops.push({id: genId(), name, lat: coord.lat, lng: coord.lng, notes, phone, cod, status:'pending', skipReason:null});
+      if(state.order) state.order.push(state.stops[state.stops.length-1].id);
+    }
+
     pendingCoord = null;
     stopInput.value=''; nameInput.value=''; document.getElementById('notesInput').value='';
     document.getElementById('phoneInput').value=''; document.getElementById('codInput').value='';
-    document.getElementById('stopDetectStatus').innerHTML = coord.approx ? '<div class="warn-text">Added — matched the street only, verify the exact house number.</div>' : '';
+    document.getElementById('stopDetectStatus').innerHTML = mergedIntoDup
+      ? '<div class="ok-text">✓ Combined into "'+escapeHtml(dup.name)+'".</div>'
+      : (coord.approx ? '<div class="warn-text">Added — matched the street only, verify the exact house number.</div>' : '');
     nameFieldWrap.style.display='none'; extraFieldsWrap.style.display='none';
     addBtn.disabled = true;
     if(state.order){ await recomputeLegs(); }
@@ -469,23 +506,32 @@ function setupBulkAddHandlers(){
     // still-uncleared textarea and add every line a second time.
     parseBtn.disabled = true;
     status.textContent = 'Parsing '+lines.length+' line(s)… (one at a time, to stay within the free geocoders\' rate limits)';
-    let added = 0, approxCount = 0;
+    let added = 0, approxCount = 0, dupCount = 0;
     const failed = [];
     for(const line of lines){
       try{
         const r = await resolveStopText(line);
         if(r){
-          const id = genId();
-          const name = defaultStopName(line, r) || ('Stop '+(state.stops.length+1));
-          state.stops.push({id, name, lat:r.lat, lng:r.lng, notes:'', phone:null, cod:null, status:'pending', skipReason:null});
-          if(state.order) state.order.push(id);
-          added++;
-          if(r.approx) approxCount++;
+          // Bulk-add is unattended (no per-line confirm dialog) — a duplicate
+          // (same coords already in the route, e.g. from re-pasting the same
+          // batch) is silently skipped rather than added again, and counted
+          // separately from real parse failures.
+          const dup = findDuplicateStop(r.lat, r.lng);
+          if(dup){
+            dupCount++;
+          } else {
+            const id = genId();
+            const name = defaultStopName(line, r) || ('Stop '+(state.stops.length+1));
+            state.stops.push({id, name, lat:r.lat, lng:r.lng, notes:'', phone:null, cod:null, status:'pending', skipReason:null});
+            if(state.order) state.order.push(id);
+            added++;
+            if(r.approx) approxCount++;
+          }
         } else failed.push(line);
       }catch(e){
         failed.push(line + (e.message==='no-api-key' ? ' (needs API key)' : ''));
       }
-      status.textContent = 'Parsed '+(added+failed.length)+' of '+lines.length+'…';
+      status.textContent = 'Parsed '+(added+dupCount+failed.length)+' of '+lines.length+'…';
       // Nominatim's usage policy caps free lookups at ~1/sec — pace the loop accordingly.
       await new Promise(r => setTimeout(r, 1100));
     }
@@ -494,6 +540,7 @@ function setupBulkAddHandlers(){
     renderSetup();
     status.textContent = added+' stop(s) added'
       + (approxCount ? ' ('+approxCount+' matched the street only — check the exact house number on arrival)' : '')
+      + (dupCount ? ' — '+dupCount+' skipped as duplicate(s) already in the route' : '')
       + '.' + (failed.length ? ' Couldn\'t pinpoint at all (search these in Google Maps/Waze and paste the link instead): '+failed.join(' | ') : '');
     // Always clear — leftover text (even just the failed lines) sitting in the box
     // is exactly what caused duplicate stops when a later paste got run through it.

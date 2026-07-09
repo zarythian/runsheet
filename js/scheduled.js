@@ -115,14 +115,22 @@ function renderScheduled(){
 function promoteScheduled(id){
   const item = scheduledById(id);
   if(!item) return;
-  state.scheduled = state.scheduled.filter(s => s.id !== id);
   const notes = (item.company ? '['+item.company+'] ' : '') + (item.notes || '');
-  state.stops.push({
-    id: genId(), name: item.name, lat: item.lat, lng: item.lng,
-    notes: notes.trim(), phone: item.phone, cod: item.cod,
-    status: 'pending', skipReason: null
-  });
-  if(state.order) state.order.push(state.stops[state.stops.length-1].id);
+
+  const dup = findDuplicateStop(item.lat, item.lng);
+  const shouldMerge = !!dup && confirm('This looks like the same address as "'+dup.name+'", already in today\'s route. Combine into that stop instead of adding a new one?');
+
+  state.scheduled = state.scheduled.filter(s => s.id !== id);
+  if(shouldMerge){
+    mergeIntoStop(dup, {notes: notes.trim(), phone: item.phone, cod: item.cod});
+  } else {
+    state.stops.push({
+      id: genId(), name: item.name, lat: item.lat, lng: item.lng,
+      notes: notes.trim(), phone: item.phone, cod: item.cod,
+      status: 'pending', skipReason: null
+    });
+    if(state.order) state.order.push(state.stops[state.stops.length-1].id);
+  }
   saveState();
   if(state.order){ recomputeLegs().then(() => { saveState(); renderSetup(); renderScheduled(); }); }
   else { renderSetup(); renderScheduled(); }
