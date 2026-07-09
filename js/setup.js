@@ -302,53 +302,56 @@ function openStopEditSheet(id){
   openSheet('stopEditSheet');
 }
 
-// ---------- address autocomplete (single-add only) ----------
-let autocompleteTimer = null;
-let autocompleteController = null;
-let autocompleteItems = [];
+// ---------- address autocomplete (reusable — single-add and scheduled-delivery forms) ----------
+// Each input gets its own isolated timer/controller/items via closure, so the
+// two address fields on screen never interfere with each other.
+function createAddressAutocomplete(inputEl, listEl){
+  let timer = null, controller = null, items = [];
 
-function hideAutocomplete(){
-  clearTimeout(autocompleteTimer);
-  if(autocompleteController){ autocompleteController.abort(); autocompleteController = null; }
-  autocompleteItems = [];
-  const list = document.getElementById('autocompleteList');
-  list.innerHTML = '';
-  list.style.display = 'none';
-}
+  function hide(){
+    clearTimeout(timer);
+    if(controller){ controller.abort(); controller = null; }
+    items = [];
+    listEl.innerHTML = '';
+    listEl.style.display = 'none';
+  }
 
-function renderAutocompleteList(stopInput, items){
-  autocompleteItems = items;
-  const list = document.getElementById('autocompleteList');
-  if(!items.length){ list.innerHTML = ''; list.style.display = 'none'; return; }
-  list.innerHTML = items.map((it,i) =>
-    '<li class="autocomplete-item" data-idx="'+i+'">'
-    + '<span class="autocomplete-badge" title="Predicted — please confirm">!</span>'
-    + '<span class="autocomplete-label">'+escapeHtml(it.label)+'</span>'
-    + '</li>'
-  ).join('');
-  list.style.display = 'block';
-  list.querySelectorAll('.autocomplete-item').forEach(el => {
-    // Prevent the input from blurring on tap, so selection fires before any blur-hide logic.
-    el.addEventListener('mousedown', e => e.preventDefault());
-    el.addEventListener('click', () => {
-      const it = autocompleteItems[parseInt(el.getAttribute('data-idx'),10)];
-      hideAutocomplete();
-      stopInput.value = it.label;
-      stopInput.dispatchEvent(new Event('input'));
-      stopInput.focus();
+  function render(newItems){
+    items = newItems;
+    if(!items.length){ listEl.innerHTML = ''; listEl.style.display = 'none'; return; }
+    listEl.innerHTML = items.map((it,i) =>
+      '<li class="autocomplete-item" data-idx="'+i+'">'
+      + '<span class="autocomplete-badge" title="Predicted — please confirm">!</span>'
+      + '<span class="autocomplete-label">'+escapeHtml(it.label)+'</span>'
+      + '</li>'
+    ).join('');
+    listEl.style.display = 'block';
+    listEl.querySelectorAll('.autocomplete-item').forEach(el => {
+      // Prevent the input from blurring on tap, so selection fires before any blur-hide logic.
+      el.addEventListener('mousedown', e => e.preventDefault());
+      el.addEventListener('click', () => {
+        const it = items[parseInt(el.getAttribute('data-idx'),10)];
+        hide();
+        inputEl.value = it.label;
+        inputEl.dispatchEvent(new Event('input'));
+        inputEl.focus();
+      });
     });
-  });
-}
+  }
 
-function scheduleAutocomplete(stopInput, val){
-  clearTimeout(autocompleteTimer);
-  if(autocompleteController){ autocompleteController.abort(); autocompleteController = null; }
-  autocompleteTimer = setTimeout(async () => {
-    autocompleteController = new AbortController();
-    const items = await orsAutocomplete(val, autocompleteController.signal);
-    if(items === null) return; // aborted — a newer keystroke superseded this request
-    renderAutocompleteList(stopInput, items);
-  }, 300);
+  function schedule(val){
+    clearTimeout(timer);
+    if(controller){ controller.abort(); controller = null; }
+    timer = setTimeout(async () => {
+      controller = new AbortController();
+      const result = await liveAutocomplete(val, controller.signal);
+      if(result === null) return; // aborted — a newer keystroke superseded this request
+      render(result);
+    }, 300);
+  }
+
+  inputEl.addEventListener('blur', () => setTimeout(hide, 150));
+  return {schedule, hide};
 }
 
 // ---------- single add ----------
@@ -358,6 +361,7 @@ function setupSingleAddHandlers(){
   const nameFieldWrap = document.getElementById('nameFieldWrap');
   const extraFieldsWrap = document.getElementById('extraFieldsWrap');
   const addBtn = document.getElementById('addBtn');
+  const stopAC = createAddressAutocomplete(stopInput, document.getElementById('autocompleteList'));
 
   stopInput.addEventListener('input', () => {
     const val = stopInput.value.trim();
@@ -367,13 +371,13 @@ function setupSingleAddHandlers(){
       nameFieldWrap.style.display = 'none';
       extraFieldsWrap.style.display = 'none';
       addBtn.disabled = true;
-      hideAutocomplete();
+      stopAC.hide();
       return;
     }
     if(isShortLink(val) && !extractLatLng(val)){
       addBtn.disabled = true;
       stopStatus.innerHTML = '<div class="warn-text">Short links (goo.gl) don\'t contain coordinates. Open it once in Maps, then paste the full link or long-press the pin to copy "lat,lng".</div>';
-      hideAutocomplete();
+      stopAC.hide();
       return;
     }
     const coord = extractLatLng(val);
@@ -388,18 +392,16 @@ function setupSingleAddHandlers(){
         const nm = extractPlaceName(val);
         if(nm) nameInput.value = nm;
       }
-      hideAutocomplete();
+      stopAC.hide();
     } else if(/^https?:\/\//i.test(val)){
       stopStatus.innerHTML = '<div class="hint">Looks like a link — it\'ll be looked up when you tap Add.</div>';
-      hideAutocomplete();
+      stopAC.hide();
     } else {
       stopStatus.innerHTML = '<div class="hint">Looks like an address — it\'ll be looked up when you tap Add.</div>';
-      if(val.length >= 3) scheduleAutocomplete(stopInput, val);
-      else hideAutocomplete();
+      if(val.length >= 3) stopAC.schedule(val);
+      else stopAC.hide();
     }
   });
-
-  stopInput.addEventListener('blur', () => setTimeout(hideAutocomplete, 150));
 
   addBtn.onclick = async () => {
     const val = stopInput.value.trim();

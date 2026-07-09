@@ -85,9 +85,11 @@ function bboxFromRadius(lat, lng, radiusKm){
 }
 
 // Live-typing suggestions via ORS's autocomplete endpoint, filtered to this app's
-// service area. Returns [{label,lat,lng}], [] if nothing/no key, or null if the
-// request was aborted (signal) — callers should treat null as "ignore, a newer
-// one is in flight".
+// service area. Only works well for a single bare word (place/street name) —
+// Pelias's autocomplete index here returns nothing once a house number, comma,
+// or second word is added. Returns [{label,lat,lng}], [] if nothing/no key, or
+// null if the request was aborted (signal) — callers should treat null as
+// "ignore, a newer one is in flight".
 async function orsAutocomplete(text, signal){
   const key = orsKey();
   if(!key) return [];
@@ -105,6 +107,48 @@ async function orsAutocomplete(text, signal){
     if(e.name === 'AbortError') return null;
     return [];
   }
+}
+
+// Nominatim's /search tolerates structured queries ("Herzl 12, Kfar Saba") that
+// ORS's autocomplete can't handle at all — used as a fallback once a query has
+// grown past a single bare word. No dedicated autocomplete endpoint exists here,
+// so this just re-runs /search on each debounced keystroke; the caller is
+// responsible for not calling this too often (Nominatim's usage policy caps
+// free lookups at ~1/sec).
+async function nominatimAutocomplete(text, signal){
+  const bbox = bboxFromRadius(SHARON_BIAS.lat, SHARON_BIAS.lng, SHARON_RADIUS_KM);
+  const url = 'https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(text)
+    +'&format=jsonv2&limit=5&countrycodes=il'
+    +'&viewbox='+bbox.left+','+bbox.top+','+bbox.right+','+bbox.bottom+'&bounded=1';
+  try{
+    const res = await fetch(url, {signal});
+    if(!res.ok) return [];
+    const results = await res.json();
+    return results.map(r => ({
+      label: r.display_name.split(',').slice(0,2).map(s => s.trim()).join(', '),
+      lat: parseFloat(r.lat), lng: parseFloat(r.lon)
+    }));
+  }catch(e){
+    if(e.name === 'AbortError') return null;
+    return [];
+  }
+}
+
+let lastNominatimAutocompleteAt = 0;
+
+// Hybrid live-suggestion lookup: try ORS first (fast, no rate limit, great for
+// a single partial word), and only fall back to Nominatim — self-throttled to
+// roughly 1/sec — when ORS has nothing, which happens once the query becomes
+// more "structured" than a bare word.
+async function liveAutocomplete(text, signal){
+  const orsResult = await orsAutocomplete(text, signal);
+  if(orsResult === null) return null;
+  if(orsResult.length) return orsResult;
+  const sinceLast = Date.now() - lastNominatimAutocompleteAt;
+  if(sinceLast < 1000) await new Promise(r => setTimeout(r, 1000 - sinceLast));
+  if(signal.aborted) return null;
+  lastNominatimAutocompleteAt = Date.now();
+  return await nominatimAutocomplete(text, signal);
 }
 
 // Try ORS Pelias search first, biased and filtered to this app's service area so

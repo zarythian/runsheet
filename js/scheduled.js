@@ -141,17 +141,20 @@ function setupScheduledHandlers(){
   dateInput.min = todayISO();
 
   let pendingSchedCoord = null;
+  const schedAC = createAddressAutocomplete(addrInput, document.getElementById('schedAutocompleteList'));
 
   addrInput.addEventListener('input', () => {
     const val = addrInput.value.trim();
     pendingSchedCoord = null;
     if(!val){
       status.innerHTML = ''; extraWrap.style.display = 'none'; addBtn.disabled = true;
+      schedAC.hide();
       return;
     }
     if(isShortLink(val) && !extractLatLng(val)){
       addBtn.disabled = true;
       status.innerHTML = '<div class="warn-text">Short links (goo.gl) don\'t contain coordinates. Paste the full link or "lat,lng" instead.</div>';
+      schedAC.hide();
       return;
     }
     const coord = extractLatLng(val);
@@ -164,8 +167,14 @@ function setupScheduledHandlers(){
         const nm = extractPlaceName(val);
         if(nm) nameInput.value = nm;
       }
+      schedAC.hide();
+    } else if(/^https?:\/\//i.test(val)){
+      status.innerHTML = '<div class="hint">Looks like a link — it\'ll be looked up when you tap Add.</div>';
+      schedAC.hide();
     } else {
       status.innerHTML = '<div class="hint">Looks like an address — it\'ll be looked up when you tap Add.</div>';
+      if(val.length >= 3) schedAC.schedule(val);
+      else schedAC.hide();
     }
   });
 

@@ -88,9 +88,10 @@
         <div class="field"><label>Company / client (optional)</label><input type="text" id="schedCompanyInput" placeholder="e.g. Wolt, or a client's name"></div>
         <div class="field"><label>Delivery date</label><input type="date" id="schedDateInput"></div>
       </div>
-      <div class="field">
+      <div class="field" style="position:relative;">
         <label>Paste a Google Maps link, address, or lat,lng</label>
         <input type="text" id="schedAddressInput" placeholder="Paste link, or type address / lat,lng" autocomplete="off">
+        <ul class="autocomplete-list" id="schedAutocompleteList" style="display:none;"></ul>
       </div>
       <div id="schedDetectStatus"></div>
       <div class="field" id="schedExtraWrap" style="display:none;">
