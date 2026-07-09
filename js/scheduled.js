@@ -141,7 +141,13 @@ function setupScheduledHandlers(){
   dateInput.min = todayISO();
 
   let pendingSchedCoord = null;
-  const schedAC = createAddressAutocomplete(addrInput, document.getElementById('schedAutocompleteList'));
+  const schedAC = createAddressAutocomplete(addrInput, document.getElementById('schedAutocompleteList'), (it) => {
+    pendingSchedCoord = {lat: it.lat, lng: it.lng, approx: it.approx};
+    status.innerHTML = '<div class="ok-text">✓ Ready — '+it.lat.toFixed(5)+', '+it.lng.toFixed(5)+'</div>';
+    extraWrap.style.display = 'block';
+    addBtn.disabled = false;
+    if(!nameInput.value) nameInput.value = it.label;
+  });
 
   addrInput.addEventListener('input', () => {
     const val = addrInput.value.trim();

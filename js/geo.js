@@ -95,14 +95,24 @@ function photonLabel(props){
   return parts.join(', ');
 }
 
+// Pull the first standalone digit run out of typed text — the house number the
+// user is asking for, if any ("ahuza 12 raanana" -> "12").
+function extractHouseNumberToken(text){
+  const m = text.match(/\b(\d{1,4})\b/);
+  return m ? m[1] : null;
+}
+
 // Live-typing suggestions via Photon (komoot's free public geocoder, OSM-backed,
 // no API key). Unlike ORS's Pelias autocomplete, Photon does real prefix
 // matching on structured queries too — house number, comma, second word and
 // all — so this alone replaces the old ORS-then-Nominatim hybrid, which broke
 // down for anything past a single bare word. `bbox` hard-filters to this app's
 // service area since Photon's `lat`/`lon` are only a soft ranking bias. Returns
-// [{label,lat,lng}], [] if nothing found, or null if the request was aborted
-// (signal) — callers should treat null as "ignore, a newer one is in flight".
+// [{label,lat,lng,approx}], [] if nothing found, or null if the request was
+// aborted (signal) — callers should treat null as "ignore, a newer one is in
+// flight". `approx: true` means the match is street-level only (no confirmed
+// house number) — same meaning as the `approx` flag from the commit-time
+// geocoders below, so callers can reuse that existing UI treatment.
 async function liveAutocomplete(text, signal){
   const bbox = bboxFromRadius(SHARON_BIAS.lat, SHARON_BIAS.lng, SHARON_RADIUS_KM);
   const url = 'https://photon.komoot.io/api/?q='+encodeURIComponent(text)
@@ -112,8 +122,17 @@ async function liveAutocomplete(text, signal){
     const res = await fetch(url, {signal});
     if(!res.ok) return [];
     const data = await res.json();
+    const wantedNum = extractHouseNumberToken(text);
     return (data.features || [])
-      .map(f => ({label: photonLabel(f.properties), lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0]}))
+      // Photon's full-text ranking can match a typed number against an unrelated
+      // POI name/housenumber ("ahuza 12" -> a shop called "B12" at #77) instead of
+      // the actual address — drop anything whose housenumber contradicts what was
+      // typed rather than presenting a confident-looking wrong number.
+      .filter(f => !(wantedNum && f.properties.housenumber && f.properties.housenumber !== wantedNum))
+      .map(f => ({
+        label: photonLabel(f.properties), lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
+        approx: !f.properties.housenumber
+      }))
       .filter(it => it.label);
   }catch(e){
     if(e.name === 'AbortError') return null;

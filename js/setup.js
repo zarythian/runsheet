@@ -304,8 +304,12 @@ function openStopEditSheet(id){
 
 // ---------- address autocomplete (reusable — single-add and scheduled-delivery forms) ----------
 // Each input gets its own isolated timer/controller/items via closure, so the
-// two address fields on screen never interfere with each other.
-function createAddressAutocomplete(inputEl, listEl){
+// two address fields on screen never interfere with each other. `onSelect(it)`
+// fires with the picked {label,lat,lng,approx} — the caller is responsible for
+// committing that coordinate (e.g. as pendingCoord) so Add uses the geocoder's
+// precise pin instead of re-resolving the label text through a different,
+// less accurate geocoder at commit time.
+function createAddressAutocomplete(inputEl, listEl, onSelect){
   let timer = null, controller = null, items = [];
 
   function hide(){
@@ -321,8 +325,8 @@ function createAddressAutocomplete(inputEl, listEl){
     if(!items.length){ listEl.innerHTML = ''; listEl.style.display = 'none'; return; }
     listEl.innerHTML = items.map((it,i) =>
       '<li class="autocomplete-item" data-idx="'+i+'">'
-      + '<span class="autocomplete-badge" title="Predicted — please confirm">!</span>'
-      + '<span class="autocomplete-label">'+escapeHtml(it.label)+'</span>'
+      + '<span class="autocomplete-badge" title="'+(it.approx ? 'Street match only — house number not confirmed' : 'Predicted — please confirm')+'">!</span>'
+      + '<span class="autocomplete-label">'+escapeHtml(it.label)+(it.approx ? ' (street only)' : '')+'</span>'
       + '</li>'
     ).join('');
     listEl.style.display = 'block';
@@ -332,8 +336,12 @@ function createAddressAutocomplete(inputEl, listEl){
       el.addEventListener('click', () => {
         const it = items[parseInt(el.getAttribute('data-idx'),10)];
         hide();
+        // Set the text without dispatching 'input' — that would re-trigger a
+        // fresh autocomplete search on the now-filled field (reopening this same
+        // dropdown) and, worse, wipe the precise coordinate we just resolved by
+        // sending the caller back through resolveStopText() on Add.
         inputEl.value = it.label;
-        inputEl.dispatchEvent(new Event('input'));
+        onSelect(it);
         inputEl.focus();
       });
     });
@@ -361,7 +369,15 @@ function setupSingleAddHandlers(){
   const nameFieldWrap = document.getElementById('nameFieldWrap');
   const extraFieldsWrap = document.getElementById('extraFieldsWrap');
   const addBtn = document.getElementById('addBtn');
-  const stopAC = createAddressAutocomplete(stopInput, document.getElementById('autocompleteList'));
+  const stopAC = createAddressAutocomplete(stopInput, document.getElementById('autocompleteList'), (it) => {
+    pendingCoord = {lat: it.lat, lng: it.lng, approx: it.approx};
+    stopStatus.innerHTML = '<div class="ok-text">✓ Ready — '+it.lat.toFixed(5)+', '+it.lng.toFixed(5)+'</div>';
+    nameFieldWrap.style.display = 'block';
+    extraFieldsWrap.style.display = 'block';
+    addBtn.disabled = false;
+    const nameInput = document.getElementById('nameInput');
+    if(nameInput && !nameInput.value) nameInput.value = it.label;
+  });
 
   stopInput.addEventListener('input', () => {
     const val = stopInput.value.trim();
