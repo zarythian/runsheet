@@ -84,71 +84,41 @@ function bboxFromRadius(lat, lng, radiusKm){
   return {left: lng-dLng, top: lat+dLat, right: lng+dLng, bottom: lat-dLat};
 }
 
-// Live-typing suggestions via ORS's autocomplete endpoint, filtered to this app's
-// service area. Only works well for a single bare word (place/street name) —
-// Pelias's autocomplete index here returns nothing once a house number, comma,
-// or second word is added. Returns [{label,lat,lng}], [] if nothing/no key, or
-// null if the request was aborted (signal) — callers should treat null as
-// "ignore, a newer one is in flight".
-async function orsAutocomplete(text, signal){
-  const key = orsKey();
-  if(!key) return [];
-  const url = 'https://api.openrouteservice.org/geocode/autocomplete?api_key='+encodeURIComponent(key)
-    +'&text='+encodeURIComponent(text)+'&size=5'
-    +'&focus.point.lat='+SHARON_BIAS.lat+'&focus.point.lon='+SHARON_BIAS.lng
-    +'&boundary.circle.lat='+SHARON_BIAS.lat+'&boundary.circle.lon='+SHARON_BIAS.lng
-    +'&boundary.circle.radius='+SHARON_RADIUS_KM;
+// Build a "Street housenumber, City" style label from Photon's structured
+// properties instead of its raw `name`, which is often just the street or POI.
+function photonLabel(props){
+  const parts = [];
+  if(props.street) parts.push(props.housenumber ? props.street+' '+props.housenumber : props.street);
+  else if(props.name) parts.push(props.name);
+  const locality = props.city || props.town || props.village || props.county;
+  if(locality) parts.push(locality);
+  return parts.join(', ');
+}
+
+// Live-typing suggestions via Photon (komoot's free public geocoder, OSM-backed,
+// no API key). Unlike ORS's Pelias autocomplete, Photon does real prefix
+// matching on structured queries too — house number, comma, second word and
+// all — so this alone replaces the old ORS-then-Nominatim hybrid, which broke
+// down for anything past a single bare word. `bbox` hard-filters to this app's
+// service area since Photon's `lat`/`lon` are only a soft ranking bias. Returns
+// [{label,lat,lng}], [] if nothing found, or null if the request was aborted
+// (signal) — callers should treat null as "ignore, a newer one is in flight".
+async function liveAutocomplete(text, signal){
+  const bbox = bboxFromRadius(SHARON_BIAS.lat, SHARON_BIAS.lng, SHARON_RADIUS_KM);
+  const url = 'https://photon.komoot.io/api/?q='+encodeURIComponent(text)
+    +'&limit=5&lang=en&lat='+SHARON_BIAS.lat+'&lon='+SHARON_BIAS.lng
+    +'&bbox='+bbox.left+','+bbox.bottom+','+bbox.right+','+bbox.top;
   try{
     const res = await fetch(url, {signal});
     if(!res.ok) return [];
     const data = await res.json();
-    return (data.features || []).map(f => ({label: cleanLabel(f.properties.label), lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0]}));
+    return (data.features || [])
+      .map(f => ({label: photonLabel(f.properties), lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0]}))
+      .filter(it => it.label);
   }catch(e){
     if(e.name === 'AbortError') return null;
     return [];
   }
-}
-
-// Nominatim's /search tolerates structured queries ("Herzl 12, Kfar Saba") that
-// ORS's autocomplete can't handle at all — used as a fallback once a query has
-// grown past a single bare word. No dedicated autocomplete endpoint exists here,
-// so this just re-runs /search on each debounced keystroke; the caller is
-// responsible for not calling this too often (Nominatim's usage policy caps
-// free lookups at ~1/sec).
-async function nominatimAutocomplete(text, signal){
-  const bbox = bboxFromRadius(SHARON_BIAS.lat, SHARON_BIAS.lng, SHARON_RADIUS_KM);
-  const url = 'https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(text)
-    +'&format=jsonv2&limit=5&countrycodes=il'
-    +'&viewbox='+bbox.left+','+bbox.top+','+bbox.right+','+bbox.bottom+'&bounded=1';
-  try{
-    const res = await fetch(url, {signal});
-    if(!res.ok) return [];
-    const results = await res.json();
-    return results.map(r => ({
-      label: r.display_name.split(',').slice(0,2).map(s => s.trim()).join(', '),
-      lat: parseFloat(r.lat), lng: parseFloat(r.lon)
-    }));
-  }catch(e){
-    if(e.name === 'AbortError') return null;
-    return [];
-  }
-}
-
-let lastNominatimAutocompleteAt = 0;
-
-// Hybrid live-suggestion lookup: try ORS first (fast, no rate limit, great for
-// a single partial word), and only fall back to Nominatim — self-throttled to
-// roughly 1/sec — when ORS has nothing, which happens once the query becomes
-// more "structured" than a bare word.
-async function liveAutocomplete(text, signal){
-  const orsResult = await orsAutocomplete(text, signal);
-  if(orsResult === null) return null;
-  if(orsResult.length) return orsResult;
-  const sinceLast = Date.now() - lastNominatimAutocompleteAt;
-  if(sinceLast < 1000) await new Promise(r => setTimeout(r, 1000 - sinceLast));
-  if(signal.aborted) return null;
-  lastNominatimAutocompleteAt = Date.now();
-  return await nominatimAutocomplete(text, signal);
 }
 
 // Try ORS Pelias search first, biased and filtered to this app's service area so
